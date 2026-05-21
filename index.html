@@ -531,6 +531,45 @@
   .cel-text .cel-by { font-size: 15px; color: var(--muted); margin-top: 10px; letter-spacing: 1px; font-weight: 600; text-transform: uppercase; }
   @media (max-width: 640px) { .cel-text .cel-name { font-size: 24px; } .cel-badge { width: 120px; height: 120px; } }
 
+  /* ===== Constellation map + view toggle ===== */
+  .view-toggle { display: inline-flex; border: 1px solid var(--line); }
+  .view-toggle button { border: none; padding: 6px 15px; font-size: 9px; letter-spacing: 1.5px; background: transparent; color: var(--muted); }
+  .view-toggle button.active { background: var(--cyan); color: #04060c; }
+  .view-toggle button:hover:not(.active) { color: var(--cyan); background: rgba(28,230,255,0.06); box-shadow: none; }
+  .map-wrap { width: 100%; overflow-x: auto; margin-bottom: 26px; padding: 6px 0 14px; }
+  .map-wrap svg { display: block; margin: 0 auto; max-width: 100%; height: auto; }
+  .cnode { cursor: pointer; }
+  .cnode-halo { transition: opacity .2s ease; }
+  .cnode:hover .cnode-halo { opacity: 0.85 !important; }
+  @keyframes nodepulse { 0%,100% { opacity: 0.55; } 50% { opacity: 0.9; } }
+  .cnode.earned .cnode-halo { animation: nodepulse 2.6s ease-in-out infinite; }
+
+  /* ===== Bulk sign-off ===== */
+  .bulk-bar {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    background: rgba(255,174,40,0.1); border: 1px solid var(--amber);
+    padding: 12px 18px; margin-bottom: 16px;
+  }
+  .bulk-bar span { font-family: 'Orbitron', sans-serif; font-size: 12px; letter-spacing: 1.5px; color: var(--amber-soft); text-transform: uppercase; }
+  .bulk-bar button { border-color: var(--amber); color: var(--amber); background: rgba(255,174,40,0.1); }
+  .bulk-bar button:hover { background: var(--amber); color: #04060c; box-shadow: var(--glow-amber); }
+  .badge-tile.selectable { border-style: dashed; }
+  .badge-tile.selected { border-color: var(--amber) !important; border-style: solid; box-shadow: 0 0 24px -6px rgba(255,174,40,0.7), inset 0 0 26px rgba(255,174,40,0.08) !important; }
+  .badge-tile.selected .em-icon { color: var(--amber-soft); }
+  .badge-tile .bulk-check {
+    position: absolute; top: 10px; right: 12px; width: 22px; height: 22px;
+    border: 2px solid var(--amber); border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 700; color: #04060c; font-family: 'Rajdhani', sans-serif;
+  }
+  .badge-tile.selected .bulk-check { background: var(--amber); }
+
+  /* ===== Feedback thread ===== */
+  .feedback-list { margin-bottom: 14px; }
+  .fb-msg { background: var(--panel); border: 1px solid var(--line-soft); border-left: 3px solid var(--cyan); padding: 12px 16px; margin-bottom: 8px; }
+  .fb-meta { font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--cyan); margin-bottom: 4px; font-weight: 600; }
+  .fb-text { font-size: 14px; color: var(--text); white-space: pre-wrap; }
+  .fb-compose textarea { min-height: 64px; }
+
   /* ===== Homestead longhorn branding ===== */
   .brand-logo { height: 74px; width: auto; display: block; filter: drop-shadow(0 0 8px rgba(28,230,255,0.75)); }
   .brand-mark .brand-sub { margin-top: 5px; }
@@ -683,6 +722,10 @@ let selectedAppId = null, selectedAppData = null; // foreman: viewing one appren
 let view = { name: "home", rankId: null };
 let editMode = false;
 let authMode = "login";
+let progressView = (function(){ try { return localStorage.getItem("htView") || "map"; } catch(e){ return "map"; } })();
+let rosterFilter = "mine";
+let bulkMode = false;
+let bulkSel = {};
 
 let unsubProfile = null, unsubCurriculum = null, unsubRoster = null, unsubSelApp = null;
 let curriculumSubbed = false, rosterSubbed = false;
@@ -805,6 +848,7 @@ function render() {
   }
   if (isForeman()) {
     if (view.name === "admin") return renderAdmin();
+    if (view.name === "digest") return renderDigest();
     if (selectedAppId && selectedAppData) {
       if (view.name === "rank") return renderRankView(selectedAppData, view.rankId, true);
       return renderProgressHome(selectedAppData, true);
@@ -882,6 +926,7 @@ function topBar() {
   return `
     <div class="toolbar">
       <span class="who">${escapeHtml(profile.name || me.email)}<span class="role-tag ${roleClass}">${roleLabel}</span></span>
+      ${isForeman() ? `<button class="ghost" onclick="openDigest()">This Week</button>` : ""}
       ${isForeman() ? `<button class="ghost" onclick="toggleEdit()">${editMode ? "Done Editing" : "Edit Curriculum"}</button>` : ""}
       ${isOwner() ? `<button class="ghost" onclick="openAdmin()">Manage Crew</button>` : ""}
       ${isOwner() ? `<button class="ghost" onclick="testFX()">Test FX</button>` : ""}
@@ -893,31 +938,44 @@ function topBar() {
 /* ---------- Foreman roster ---------- */
 function renderRoster() {
   const total = curriculum.ranks.reduce((s, r) => s + r.badges.length, 0);
+  const showMine = rosterFilter === "mine";
+  const shown = showMine ? apprentices.filter(a => a.mentorUid === me.uid) : apprentices;
   C().innerHTML = `
     ${topBar()}
-    ${editMode ? '<div class="edit-banner">Edit mode — open any apprentice, then click ranks or merits to modify the shared curriculum.</div>' : ''}
+    ${editMode ? '<div class="edit-banner">Edit mode — open an apprentice, then click ranks or merits to modify the shared curriculum.</div>' : ''}
     <div class="eyebrow"><span>Foreman</span><span class="sep">·</span><span class="sub">${escapeHtml(profile.company || "Crew")}</span></div>
     <h1 class="display-name">THE CREW<span class="punct">.</span></h1>
     <p class="subhead" style="margin-top:8px">Pick an apprentice to view their progress and sign off merits.</p>
-    <div class="section-head"><h2>Apprentices</h2><span class="meta">${apprentices.length} On Roster</span></div>
+    <div class="section-head">
+      <h2>Apprentices</h2>
+      <span class="view-toggle">
+        <button class="${showMine ? "active" : ""}" onclick="setRosterFilter('mine')">My Crew</button>
+        <button class="${!showMine ? "active" : ""}" onclick="setRosterFilter('all')">All</button>
+      </span>
+    </div>
     <ul class="item-list" id="rosterList"></ul>
   `;
   const list = document.getElementById("rosterList");
-  if (!apprentices.length) {
-    list.innerHTML = '<p class="subhead">No apprentices yet. Have them open the app and create an account — they\'ll appear here automatically.</p>';
+  if (!shown.length) {
+    list.innerHTML = '<p class="subhead">' + (showMine
+      ? "No apprentices assigned to you yet. Switch to \"All\", open someone, and tap \"Make me mentor.\""
+      : "No apprentices yet. Have them open the app and create an account — they'll appear here automatically.") + '</p>';
     return;
   }
-  apprentices.forEach((a, idx) => {
+  shown.forEach((a, idx) => {
     const earned = Object.keys(a.earnedBadges || {}).length;
     const pct = total ? Math.round((earned / total) * 100) : 0;
     const initials = (a.name || "?").split(/\s+/).map(s => s[0]).filter(Boolean).slice(0, 2).join("").toUpperCase();
+    const mentorTag = a.mentorUid
+      ? (a.mentorUid === me.uid ? '<span class="role-tag">Mine</span>' : '<span class="role-tag" style="color:var(--muted);border-color:var(--line-soft)">' + escapeHtml(a.mentorName || "Mentored") + '</span>')
+      : '';
     const li = document.createElement("li");
     li.className = "item rise";
     li.style.animationDelay = (idx * 0.05) + "s";
     li.innerHTML = `
       <div class="avatar">${escapeHtml(initials)}</div>
       <div class="body">
-        <div class="title">${escapeHtml(a.name || a.email)}</div>
+        <div class="title">${escapeHtml(a.name || a.email)}${mentorTag}</div>
         <div class="sub">${earned} of ${total} merits · ${pct}%</div>
         <div class="progress-line"><div class="fill" style="width:${pct}%"></div></div>
       </div>
@@ -930,6 +988,27 @@ function renderRoster() {
     list.appendChild(li);
   });
 }
+function setRosterFilter(f) { rosterFilter = f; render(); }
+function assignMentorSelf() {
+  if (!selectedAppId) return;
+  db.collection("users").doc(selectedAppId).update({ mentorUid: me.uid, mentorName: profile.name || me.email })
+    .catch(e => alert("Could not assign: " + e.message));
+}
+function unassignMentor() {
+  if (!selectedAppId) return;
+  db.collection("users").doc(selectedAppId).update({
+    mentorUid: firebase.firestore.FieldValue.delete(),
+    mentorName: firebase.firestore.FieldValue.delete()
+  }).catch(e => alert("Could not unassign: " + e.message));
+}
+function mentorControl(u) {
+  const isMine = u.mentorUid === me.uid;
+  const who = u.mentorUid ? escapeHtml(u.mentorName || "Assigned") : "Unassigned";
+  const btn = isMine
+    ? '<button class="ghost" style="padding:4px 10px;font-size:9px;margin-left:8px" onclick="unassignMentor()">Unassign me</button>'
+    : '<button class="ghost" style="padding:4px 10px;font-size:9px;margin-left:8px" onclick="assignMentorSelf()">Make me mentor</button>';
+  return '<p class="subhead" style="margin-top:-18px">Mentor: ' + who + btn + '</p>';
+}
 
 /* ---------- Progress home (rank list) for a given user ---------- */
 function renderProgressHome(userData, foremanView) {
@@ -939,6 +1018,7 @@ function renderProgressHome(userData, foremanView) {
   const pct = total ? Math.round((earnedCount / total) * 100) : 0;
   const currentRank = computeCurrentRank(earnedMap);
   const nameUpper = (userData.name || "Apprentice").toUpperCase();
+  updateChargeGlow(userData);
 
   C().innerHTML = `
     ${topBar()}
@@ -947,49 +1027,199 @@ function renderProgressHome(userData, foremanView) {
     <div class="eyebrow"><span>${foremanView ? "Apprentice" : "Apprentice"}</span><span class="sep">·</span><span class="sub">${escapeHtml(userData.company || "Residential")}</span></div>
     <h1 class="display-name">${escapeHtml(nameUpper)}<span class="punct">.</span></h1>
     <p class="subhead" style="margin-top:8px">Online since ${formatDate(userData.startDate)} · Current rank: ${escapeHtml(currentRank.name)}</p>
+    ${foremanView ? mentorControl(userData) : ''}
     <div class="stats-row">
       <div class="stat"><div class="stat-lbl">Merits Earned</div><div class="stat-val">${earnedCount}<span class="frac"> / ${total}</span></div></div>
       <div class="stat"><div class="stat-lbl">Grid Charge</div><div class="stat-val">${pct}<span class="frac">%</span></div></div>
       <div class="stat"><div class="stat-lbl">Rank</div><div class="stat-val small">${escapeHtml(currentRank.name)}</div></div>
     </div>
-    <div class="section-head"><h2>Ranks</h2><span class="meta">${curriculum.ranks.length} Levels · Sequential</span></div>
-    <ul class="item-list" id="rankList"></ul>
-    ${editMode ? '<button class="add-row" onclick="addRank()">+ Add a New Rank</button>' : ''}
+    <div class="section-head">
+      <h2>${progressView === "map" ? "The Grid" : "Ranks"}</h2>
+      <span class="view-toggle">
+        <button class="${progressView === "map" ? "active" : ""}" onclick="setProgressView('map')">Map</button>
+        <button class="${progressView === "list" ? "active" : ""}" onclick="setProgressView('list')">List</button>
+      </span>
+    </div>
+    <div id="progressBody"></div>
+    ${editMode && progressView === "list" ? '<button class="add-row" onclick="addRank()">+ Add a New Rank</button>' : ''}
+    <div class="section-head" style="margin-top:30px"><h2>Feedback</h2></div>
+    <div id="feedbackBox"></div>
     <div class="status-bar"><span class="dot"></span><span>Live · Synced to the grid in real time</span></div>
   `;
-  const list = document.getElementById("rankList");
-  curriculum.ranks.forEach((rank, idx) => {
-    const inRank = rank.badges.filter(b => earnedMap[b.id]).length;
-    const totalInRank = rank.badges.length;
-    const rankPct = totalInRank ? Math.round((inRank / totalInRank) * 100) : 0;
-    const complete = totalInRank > 0 && inRank === totalInRank;
-    const li = document.createElement("li");
-    li.className = "item rise" + (complete ? " complete-rank" : "");
-    li.style.animationDelay = (idx * 0.07) + "s";
-    li.innerHTML = `
-      <div class="num">${String(idx + 1).padStart(2, "0")}</div>
-      <div class="body">
-        <div class="title">${escapeHtml(rank.name)}</div>
-        <div class="sub">${escapeHtml(rank.subtitle || "")}</div>
-        <div class="rank-progress">${inRank} of ${totalInRank} merits · ${rankPct}%</div>
-        <div class="progress-line"><div class="fill" style="width:${rankPct}%"></div></div>
-      </div>
-      <div class="arrow">▶</div>
-    `;
-    li.addEventListener("click", () => { view = { name: "rank", rankId: rank.id }; window.scrollTo(0, 0); render(); });
-    list.appendChild(li);
+  const body = document.getElementById("progressBody");
+  if (progressView === "map") {
+    body.innerHTML = '<div class="map-wrap">' + buildConstellation(userData) + '</div>';
+    body.querySelectorAll(".cnode[data-badge]").forEach(g => {
+      g.addEventListener("click", () => openBadge(userData, g.getAttribute("data-rank"), g.getAttribute("data-badge"), foremanView));
+    });
+  } else {
+    const list = document.createElement("ul");
+    list.className = "item-list";
+    curriculum.ranks.forEach((rank, idx) => {
+      const inRank = rank.badges.filter(b => earnedMap[b.id]).length;
+      const totalInRank = rank.badges.length;
+      const rankPct = totalInRank ? Math.round((inRank / totalInRank) * 100) : 0;
+      const complete = totalInRank > 0 && inRank === totalInRank;
+      const li = document.createElement("li");
+      li.className = "item rise" + (complete ? " complete-rank" : "");
+      li.style.animationDelay = (idx * 0.07) + "s";
+      li.innerHTML = `
+        <div class="num">${String(idx + 1).padStart(2, "0")}</div>
+        <div class="body">
+          <div class="title">${escapeHtml(rank.name)}</div>
+          <div class="sub">${escapeHtml(rank.subtitle || "")}</div>
+          <div class="rank-progress">${inRank} of ${totalInRank} merits · ${rankPct}%</div>
+          <div class="progress-line"><div class="fill" style="width:${rankPct}%"></div></div>
+        </div>
+        <div class="arrow">▶</div>
+      `;
+      li.addEventListener("click", () => { view = { name: "rank", rankId: rank.id }; window.scrollTo(0, 0); render(); });
+      list.appendChild(li);
+    });
+    body.appendChild(list);
+  }
+  renderFeedbackInto(userData, foremanView);
+}
+
+/* ---------- Feedback thread ---------- */
+function fbDate(ts) {
+  if (!ts) return "";
+  const d = new Date(ts);
+  return d.toLocaleDateString(undefined, { month: "short", day: "numeric" }) + " " + d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+}
+function renderFeedbackInto(userData, foremanView) {
+  const box = document.getElementById("feedbackBox");
+  if (!box) return;
+  const msgs = (userData.feedback || []).slice().sort((a, b) => (a.ts || 0) - (b.ts || 0));
+  let html = '<div class="feedback-list">';
+  if (!msgs.length) html += '<p class="subhead" style="margin:0 0 12px">No feedback yet.</p>';
+  msgs.forEach(m => {
+    html += '<div class="fb-msg"><div class="fb-meta">' + escapeHtml(m.from || "") + ' · ' + fbDate(m.ts) + '</div><div class="fb-text">' + escapeHtml(m.text || "") + '</div></div>';
   });
+  html += '</div>';
+  html += '<div class="fb-compose"><textarea id="fbInput" placeholder="' + (foremanView ? "Leave feedback for this apprentice…" : "Leave a note or question…") + '"></textarea>'
+    + '<div style="display:flex;justify-content:flex-end;margin-top:8px"><button class="primary" onclick="postFeedback()">Post</button></div></div>';
+  box.innerHTML = html;
+}
+function postFeedback() {
+  const el = document.getElementById("fbInput");
+  if (!el) return;
+  const text = (el.value || "").trim();
+  if (!text) return;
+  const targetUid = (isForeman() && selectedAppId) ? selectedAppId : me.uid;
+  db.collection("users").doc(targetUid).update({
+    feedback: firebase.firestore.FieldValue.arrayUnion({ from: profile.name || me.email, fromUid: me.uid, text: text, ts: Date.now() })
+  }).then(() => { el.value = ""; }).catch(e => alert("Could not post: " + e.message));
+}
+
+function setProgressView(m) {
+  progressView = m;
+  try { localStorage.setItem("htView", m); } catch (e) {}
+  render();
+}
+
+/* ---------- Constellation map (climbing path, bottom -> top) ---------- */
+function cWrapLabel(name) {
+  name = String(name || "");
+  if (name.length <= 16) return [name];
+  const words = name.split(" ");
+  let l1 = "", l2 = "";
+  for (const w of words) {
+    if (!l2 && (l1 + " " + w).trim().length <= 16) l1 = (l1 + " " + w).trim();
+    else l2 = (l2 + " " + w).trim();
+  }
+  return l2 ? [l1, l2] : [l1];
+}
+function buildConstellation(userData) {
+  const earnedMap = userData.earnedBadges || {};
+  const ranks = curriculum.ranks;
+  const W = 760, cx = 380, rowH = 104, branch = 176, topPad = 120, bottomPad = 56;
+  const segTotal = ranks.reduce((s, r) => s + (r.badges.length + 1) * rowH, 0);
+  const H = topPad + segTotal + bottomPad;
+  let traces = "", nodes = "";
+  const earnedYs = [];
+  let y = H - bottomPad;
+  ranks.forEach((rank, i) => {
+    const rankY = y;
+    const inRank = rank.badges.filter(b => earnedMap[b.id]).length;
+    const rankComplete = rank.badges.length > 0 && inRank === rank.badges.length;
+    rank.badges.forEach((b, j) => {
+      const my = rankY - (j + 1) * rowH;
+      const side = (j % 2 === 0) ? -1 : 1;
+      const mx = cx + side * branch;
+      const earned = !!earnedMap[b.id];
+      if (earned) earnedYs.push(my);
+      const tcol = earned ? "rgba(28,230,255,0.9)" : "rgba(28,230,255,0.16)";
+      traces += `<path d="M ${cx} ${my} C ${cx + side * 72} ${my} ${mx - side * 52} ${my} ${mx} ${my}" fill="none" stroke="${tcol}" stroke-width="${earned ? 2.5 : 1.4}"/>`;
+      nodes += meritNodeSVG(mx, my, b, earned, rank.id);
+    });
+    nodes += rankStationSVG(cx, rankY, i + 1, rankComplete, rank.name);
+    y = rankY - (rank.badges.length + 1) * rowH;
+  });
+  const capY = topPad - 34;
+  const allDone = ranks.length > 0 && ranks.every(r => r.badges.length > 0 && r.badges.every(b => earnedMap[b.id]));
+  const trunkBottom = H - bottomPad;
+  let trunk = `<line x1="${cx}" y1="${trunkBottom}" x2="${cx}" y2="${capY}" stroke="rgba(28,230,255,0.14)" stroke-width="3"/>`;
+  if (earnedYs.length) {
+    trunk += `<line x1="${cx}" y1="${trunkBottom}" x2="${cx}" y2="${Math.min.apply(null, earnedYs)}" stroke="rgba(28,230,255,0.85)" stroke-width="3"/>`;
+  }
+  return `<svg viewBox="0 0 ${W} ${H}" width="${W}" xmlns="http://www.w3.org/2000/svg">${trunk}${traces}${nodes}${capstoneSVG(cx, capY, allDone)}</svg>`;
+}
+function meritNodeSVG(x, y, badge, earned, rankId) {
+  const ring = earned ? "rgba(28,230,255,0.95)" : "rgba(28,230,255,0.32)";
+  const fill = earned ? "rgba(28,230,255,0.18)" : "rgba(10,18,30,0.85)";
+  const iconCol = earned ? "#8ff3ff" : "#5f8593";
+  const inner = ICONS[badge.id] || ICON_FALLBACK;
+  const tcol = earned ? "#eafcff" : "#5f8593";
+  let label = "";
+  cWrapLabel(badge.name).forEach((ln, k) => {
+    label += `<text x="${x}" y="${y + 42 + k * 14}" text-anchor="middle" font-family="Orbitron, sans-serif" font-size="10" letter-spacing="0.4" fill="${tcol}">${escapeHtml(ln.toUpperCase())}</text>`;
+  });
+  return `<g class="cnode${earned ? " earned" : ""}" data-rank="${rankId}" data-badge="${badge.id}">`
+    + `<circle class="cnode-halo" cx="${x}" cy="${y}" r="30" fill="${ring}" opacity="${earned ? 0.6 : 0}" style="${earned ? "filter:blur(6px)" : ""}"/>`
+    + `<circle cx="${x}" cy="${y}" r="17" fill="${fill}" stroke="${ring}" stroke-width="2"/>`
+    + `<svg x="${x - 11}" y="${y - 11}" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="${iconCol}" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">${inner}</svg>`
+    + (earned ? `<circle cx="${x + 13}" cy="${y - 13}" r="6.5" fill="#1ce6ff"/><text x="${x + 13}" y="${y - 9.5}" text-anchor="middle" font-size="9" font-family="Rajdhani, sans-serif" fill="#04060c">✓</text>` : "")
+    + label
+    + `<circle cx="${x}" cy="${y}" r="34" fill="transparent"/>`
+    + `</g>`;
+}
+function rankStationSVG(x, y, num, complete, name) {
+  const stroke = complete ? "rgba(77,255,176,0.95)" : "rgba(28,230,255,0.9)";
+  function hex(cx, cy, r) { let p = ""; for (let k = 0; k < 6; k++) { const a = Math.PI / 180 * (60 * k - 90); p += (k ? "L" : "M") + (cx + r * Math.cos(a)).toFixed(1) + " " + (cy + r * Math.sin(a)).toFixed(1) + " "; } return p + "Z"; }
+  return `<g>`
+    + `<path d="${hex(x, y, 22)}" fill="rgba(8,14,22,0.95)" stroke="${stroke}" stroke-width="2.5"/>`
+    + `<text x="${x}" y="${y + 6}" text-anchor="middle" font-family="Orbitron, sans-serif" font-weight="900" font-size="17" fill="${complete ? "#4dffb0" : "#8ff3ff"}">${num}</text>`
+    + `<text x="${x}" y="${y + 46}" text-anchor="middle" font-family="Orbitron, sans-serif" font-size="9" letter-spacing="1.5" fill="#5f8593">${escapeHtml(String(name || "").toUpperCase())}</text>`
+    + `</g>`;
+}
+function capstoneSVG(x, y, done) {
+  const stroke = done ? "rgba(255,174,40,0.95)" : "rgba(28,230,255,0.5)";
+  const fill = done ? "rgba(255,174,40,0.18)" : "rgba(10,18,30,0.9)";
+  const txt = done ? "#ffd27a" : "#5f8593";
+  let star = ""; const R = 26, r = 11;
+  for (let k = 0; k < 10; k++) { const rad = (k % 2 === 0) ? R : r; const a = Math.PI / 180 * (36 * k - 90); star += (k ? "L" : "M") + (x + rad * Math.cos(a)).toFixed(1) + " " + (y + rad * Math.sin(a)).toFixed(1) + " "; }
+  star += "Z";
+  return `<g>`
+    + (done ? `<circle cx="${x}" cy="${y}" r="42" fill="rgba(255,174,40,0.5)" opacity="0.5" style="filter:blur(9px)"/>` : "")
+    + `<path d="${star}" fill="${fill}" stroke="${stroke}" stroke-width="2.5"/>`
+    + `<text x="${x}" y="${y - 46}" text-anchor="middle" font-family="Orbitron, sans-serif" font-weight="700" font-size="13" letter-spacing="2" fill="${txt}">JOURNEYMAN-READY</text>`
+    + `</g>`;
 }
 
 /* ---------- Rank view (merit tiles) ---------- */
 function renderRankView(userData, rankId, foremanView) {
   const rank = curriculum.ranks.find(r => r.id === rankId);
   if (!rank) { view = { name: "home" }; return render(); }
+  updateChargeGlow(userData);
   const idx = curriculum.ranks.findIndex(r => r.id === rankId);
   const earnedMap = userData.earnedBadges || {};
   const inRank = rank.badges.filter(b => earnedMap[b.id]).length;
   const totalInRank = rank.badges.length;
   const rankPct = totalInRank ? Math.round((inRank / totalInRank) * 100) : 0;
+  const canSignOff = foremanView && isForeman();
+  const bulkActive = bulkMode && canSignOff;
+  const selCount = Object.keys(bulkSel).length;
 
   C().innerHTML = `
     ${topBar()}
@@ -998,17 +1228,21 @@ function renderRankView(userData, rankId, foremanView) {
       <div class="eyebrow"><span>Rank ${String(idx + 1).padStart(2, "0")}</span><span class="sep">·</span><span class="sub">${inRank} / ${totalInRank} online</span></div>
       <h1 class="display">${escapeHtml(rank.name)}<span class="punct">.</span></h1>
       <p class="subhead">${escapeHtml(rank.subtitle || "")}${foremanView ? " · " + escapeHtml(userData.name || "") : ""}</p>
-      ${editMode ? '<button class="ghost" onclick="editRank(\'' + rank.id + '\')">Edit rank</button>' : ''}
+      ${editMode ? '<button class="ghost" onclick="editRank(\'' + rank.id + '\')">Edit rank</button>'
+        : (canSignOff ? '<button class="ghost" onclick="toggleBulk()">' + (bulkMode ? "Cancel Bulk" : "Bulk Sign-Off") + '</button>' : '')}
     </div>
     <div class="section-head"><h2>Merits</h2><span class="meta">${rankPct}% Charged</span></div>
+    ${bulkActive ? '<div class="bulk-bar"><span>' + selCount + ' selected</span><button onclick="openBulkSignoff()">Sign Off Selected →</button></div>' : ''}
     <div class="badge-grid" id="badgeGrid"></div>
     ${editMode ? '<button class="add-row" onclick="addBadge(\'' + rank.id + '\')">+ Add a New Merit</button>' : ''}
   `;
   const grid = document.getElementById("badgeGrid");
   rank.badges.forEach((badge, bidx) => {
     const earned = earnedMap[badge.id];
+    const selectable = bulkActive && !earned;
+    const selected = selectable && !!bulkSel[badge.id];
     const tile = document.createElement("div");
-    tile.className = "badge-tile rise" + (earned ? " earned" : "");
+    tile.className = "badge-tile rise" + (earned ? " earned" : "") + (selectable ? " selectable" : "") + (selected ? " selected" : "");
     tile.style.animationDelay = (bidx * 0.06) + "s";
     tile.innerHTML = `
       <div class="emblem">
@@ -1019,10 +1253,64 @@ function renderRankView(userData, rankId, foremanView) {
       </div>
       <div class="badge-name">${escapeHtml(badge.name)}</div>
       <div class="badge-status">${earned ? "Earned · " + formatDate(earned.date) : (badge.reqs || []).length + " Reqs"}</div>
+      ${selectable ? '<div class="bulk-check">' + (selected ? "✓" : "") + '</div>' : ''}
     `;
-    tile.addEventListener("click", () => openBadge(userData, rank.id, badge.id, foremanView));
+    tile.addEventListener("click", () => {
+      if (selectable) toggleBulkSel(badge.id);
+      else openBadge(userData, rank.id, badge.id, foremanView);
+    });
     grid.appendChild(tile);
   });
+}
+function toggleBulk() { bulkMode = !bulkMode; bulkSel = {}; render(); }
+function toggleBulkSel(id) { if (bulkSel[id]) delete bulkSel[id]; else bulkSel[id] = true; render(); }
+function openBulkSignoff() {
+  const ids = Object.keys(bulkSel);
+  if (!ids.length) { alert("Tap some merits to select them first."); return; }
+  const today = new Date().toISOString().slice(0, 10);
+  const names = ids.map(id => { const b = findBadge(id); return b ? b.name : id; });
+  const modal = document.getElementById("modal");
+  modal.innerHTML = `
+    <button class="modal-close" onclick="closeModal()">×</button>
+    <div class="modal-head">
+      <div class="eyebrow"><span>Bulk Sign-Off</span><span class="sep">·</span><span class="sub">${ids.length} merits</span></div>
+      <h3>Sign off ${ids.length} ${ids.length === 1 ? "merit" : "merits"}</h3>
+      <div class="desc">${names.map(escapeHtml).join(" · ")}</div>
+    </div>
+    <div class="modal-body">
+      <div class="signoff-form">
+        <div class="form-eyebrow">— Trainer Sign-Off</div>
+        <label>Trainer / Verifier Name</label>
+        <input type="text" id="bulkTrainer" value="${escapeAttr(profile.name || "")}" />
+        <label>Date</label>
+        <input type="date" id="bulkDate" value="${today}" />
+        <label>Notes (optional)</label>
+        <textarea id="bulkNotes" placeholder="Verified on the Anderson job"></textarea>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <div></div>
+      <div class="right">
+        <button class="ghost" onclick="closeModal()">Cancel</button>
+        <button class="primary" onclick="bulkSignOff()">Light Them Up →</button>
+      </div>
+    </div>
+  `;
+  document.getElementById("modalBackdrop").classList.add("open");
+}
+function bulkSignOff() {
+  if (!selectedAppId) return;
+  const trainer = (document.getElementById("bulkTrainer").value || "").trim();
+  const date = document.getElementById("bulkDate").value;
+  const notes = (document.getElementById("bulkNotes").value || "").trim();
+  if (!trainer) { alert("Trainer / verifier name is required."); return; }
+  if (!date) { alert("Date is required."); return; }
+  const ids = Object.keys(bulkSel);
+  const upd = {};
+  ids.forEach(id => { upd["earnedBadges." + id] = { trainer: trainer, trainerUid: me.uid, date: date, notes: notes, ts: Date.now() }; });
+  db.collection("users").doc(selectedAppId).update(upd)
+    .then(() => { bulkMode = false; bulkSel = {}; closeModal(); })
+    .catch(e => alert("Could not sign off: " + e.message));
 }
 
 /* ---------- Badge modal ---------- */
@@ -1032,6 +1320,7 @@ function openBadge(userData, rankId, badgeId, foremanView) {
   const earned = (userData.earnedBadges || {})[badgeId];
   const today = new Date().toISOString().slice(0, 10);
   const canSignOff = foremanView && isForeman();
+  if (earned) window.__win = { name: badge.name, date: earned.date, user: userData.name || "" };
 
   const modal = document.getElementById("modal");
   modal.innerHTML = `
@@ -1079,6 +1368,7 @@ function openBadge(userData, rankId, badgeId, foremanView) {
           : (earned && canSignOff ? '<button class="danger" onclick="revokeBadge(\'' + badgeId + '\')">Revoke</button>' : "")}
       </div>
       <div class="right">
+        ${(!editMode && earned) ? '<button onclick="shareWin()">Share Win</button>' : ""}
         <button class="ghost" onclick="closeModal()">Close</button>
         ${editMode ? '<button class="primary" onclick="saveBadgeEdits(\'' + rankId + '\',\'' + badgeId + '\')">Save</button>'
           : (!earned && canSignOff ? '<button class="primary" onclick="signOff(\'' + badgeId + '\')">Light It Up →</button>' : "")}
@@ -1171,6 +1461,49 @@ function addRank() {
   saveCurriculum().then(() => { editRank(newId); });
 }
 
+/* ---------- Weekly digest (in-app, last 7 days) ---------- */
+function openDigest() { view = { name: "digest" }; window.scrollTo(0, 0); render(); }
+function renderDigest() {
+  const now = Date.now();
+  const weekAgo = now - 7 * 86400000;
+  let weekCount = 0;
+  const active = [], close = [], stalled = [];
+  apprentices.forEach(a => {
+    const eb = a.earnedBadges || {};
+    const ids = Object.keys(eb);
+    const recent = ids.filter(id => (eb[id].ts || 0) >= weekAgo);
+    weekCount += recent.length;
+    if (recent.length) active.push({ name: a.name || a.email, items: recent.map(id => { const b = findBadge(id); return b ? b.name : id; }) });
+    for (const r of curriculum.ranks) {
+      const need = r.badges.filter(b => !eb[b.id]);
+      if (r.badges.length && need.length === 1) { close.push({ name: a.name || a.email, rankName: r.name, merit: need[0].name }); break; }
+    }
+    const lastTs = ids.reduce((m, id) => Math.max(m, eb[id].ts || 0), 0);
+    if (now - lastTs > 14 * 86400000) stalled.push({ name: a.name || a.email, lastTs: lastTs });
+  });
+  const listOf = (arr, render) => arr.length
+    ? '<ul class="item-list">' + arr.map(x => '<li class="item" style="cursor:default"><div class="body">' + render(x) + '</div></li>').join("") + '</ul>'
+    : '';
+  C().innerHTML = `
+    ${topBar()}
+    <button class="back-link" onclick="goHome()">Back to crew</button>
+    <div class="eyebrow"><span>Crew</span><span class="sep">·</span><span class="sub">Last 7 Days</span></div>
+    <h1 class="display">THIS WEEK<span class="punct">.</span></h1>
+    <p class="subhead">A snapshot of crew progress over the past week.</p>
+    <div class="stats-row">
+      <div class="stat"><div class="stat-lbl">Merits This Week</div><div class="stat-val">${weekCount}</div></div>
+      <div class="stat"><div class="stat-lbl">Active</div><div class="stat-val">${active.length}<span class="frac"> / ${apprentices.length}</span></div></div>
+      <div class="stat"><div class="stat-lbl">Close to a Rank</div><div class="stat-val">${close.length}</div></div>
+    </div>
+    <div class="section-head"><h2>Earned This Week</h2></div>
+    ${active.length ? listOf(active, a => '<div class="title">' + escapeHtml(a.name) + '</div><div class="sub">' + a.items.map(escapeHtml).join(" · ") + '</div>') : '<p class="subhead">No merits earned in the last 7 days.</p>'}
+    <div class="section-head" style="margin-top:24px"><h2>Close to a Rank</h2></div>
+    ${close.length ? listOf(close, c => '<div class="title">' + escapeHtml(c.name) + '</div><div class="sub">1 merit from ' + escapeHtml(c.rankName) + ' — needs ' + escapeHtml(c.merit) + '</div>') : '<p class="subhead">Nobody is one merit away right now.</p>'}
+    <div class="section-head" style="margin-top:24px"><h2>Needs a Nudge</h2></div>
+    ${stalled.length ? listOf(stalled, s => '<div class="title">' + escapeHtml(s.name) + '</div><div class="sub">' + (s.lastTs ? "No merit since " + formatDate(s.lastTs) : "No merits earned yet") + '</div>') : '<p class="subhead">Everyone has been active lately.</p>'}
+  `;
+}
+
 /* ---------- Owner: manage crew (roles) ---------- */
 function openAdmin() { view = { name: "admin" }; window.scrollTo(0, 0); render(); }
 function renderAdmin() {
@@ -1230,13 +1563,15 @@ function setRole(uid, role) {
 /* ---------- Navigation ---------- */
 function goHome() {
   if (isForeman()) { selectedAppId = null; selectedAppData = null; if (unsubSelApp) { unsubSelApp(); unsubSelApp = null; } }
+  bulkMode = false; bulkSel = {};
   view = { name: "home" }; window.scrollTo(0, 0); render();
 }
 function backToRoster() {
   selectedAppId = null; selectedAppData = null; if (unsubSelApp) { unsubSelApp(); unsubSelApp = null; }
+  bulkMode = false; bulkSel = {};
   view = { name: "home" }; window.scrollTo(0, 0); render();
 }
-function backToHome() { view = { name: "home" }; window.scrollTo(0, 0); render(); }
+function backToHome() { bulkMode = false; bulkSel = {}; view = { name: "home" }; window.scrollTo(0, 0); render(); }
 
 /* ---------- Helpers ---------- */
 function computeCurrentRank(earnedMap) {
@@ -1265,6 +1600,7 @@ function formatDate(d) {
 /* ---------- Celebration (apprentice device) ---------- */
 function celebrate(badge, trainer) {
   playZap();
+  if (navigator.vibrate) { try { navigator.vibrate([55, 40, 110]); } catch (e) {} }  // haptic snort
   const cel = document.createElement("div");
   cel.className = "celebration";
   cel.innerHTML = `
@@ -1294,6 +1630,71 @@ function celebrate(badge, trainer) {
   };
   setTimeout(startSmoke, 600);
   setTimeout(() => cel.remove(), 5000);
+}
+
+/* Charge-up: brand logo + watermark glow harder as progress climbs */
+function updateChargeGlow(userData) {
+  const bl = document.getElementById("brandLogo");
+  const wm = document.getElementById("logoWatermark");
+  const total = curriculum ? curriculum.ranks.reduce((s, r) => s + r.badges.length, 0) : 0;
+  const earned = (userData && userData.earnedBadges) ? Object.keys(userData.earnedBadges).length : 0;
+  const t = total ? Math.max(0, Math.min(1, earned / total)) : 0;
+  if (bl) bl.style.filter = "drop-shadow(0 0 " + (6 + t * 22).toFixed(1) + "px rgba(28,230,255," + (0.5 + t * 0.45).toFixed(2) + "))";
+  if (wm) wm.style.opacity = (0.04 + t * 0.08).toFixed(3);
+}
+
+/* Win card: shareable image of an earned merit */
+function shareWin() {
+  if (!window.__win) return;
+  makeWinCard(window.__win.name, window.__win.date, window.__win.user);
+}
+function cvWrap(ctx, text, x, y, maxW, lh) {
+  const words = String(text).split(" ");
+  let line = "", yy = y;
+  for (const w of words) {
+    const t = line ? line + " " + w : w;
+    if (ctx.measureText(t).width > maxW && line) { ctx.fillText(line, x, yy); line = w; yy += lh; }
+    else line = t;
+  }
+  ctx.fillText(line, x, yy);
+  return yy;
+}
+function makeWinCard(name, date, user) {
+  const S = 1080;
+  const cv = document.createElement("canvas");
+  cv.width = S; cv.height = S;
+  const ctx = cv.getContext("2d");
+  ctx.fillStyle = "#04060c"; ctx.fillRect(0, 0, S, S);
+  ctx.strokeStyle = "rgba(28,230,255,0.08)"; ctx.lineWidth = 1;
+  for (let x = 0; x <= S; x += 60) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, S); ctx.stroke(); }
+  for (let y = 0; y <= S; y += 60) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(S, y); ctx.stroke(); }
+  const g = ctx.createRadialGradient(S / 2, S * 0.40, 0, S / 2, S * 0.40, S * 0.6);
+  g.addColorStop(0, "rgba(28,230,255,0.20)"); g.addColorStop(1, "rgba(4,6,12,0)");
+  ctx.fillStyle = g; ctx.fillRect(0, 0, S, S);
+  const img = new Image();
+  img.onload = function () {
+    const lw = S * 0.64, lh = lw * (img.height / img.width);
+    ctx.save(); ctx.shadowColor = "rgba(28,230,255,0.85)"; ctx.shadowBlur = 45;
+    ctx.drawImage(img, (S - lw) / 2, S * 0.15, lw, lh); ctx.restore();
+    ctx.textAlign = "center";
+    ctx.fillStyle = "#1ce6ff"; ctx.font = "600 32px Orbitron, Arial, sans-serif";
+    ctx.fillText("MERIT EARNED", S / 2, S * 0.61);
+    ctx.fillStyle = "#eafcff"; ctx.font = "900 60px Orbitron, Arial, sans-serif";
+    cvWrap(ctx, String(name).toUpperCase(), S / 2, S * 0.69, S * 0.84, 66);
+    ctx.fillStyle = "#8ff3ff"; ctx.font = "600 28px Rajdhani, Arial, sans-serif";
+    ctx.fillText(String(user || "").toUpperCase() + (date ? "   ·   " + formatDate(date) : ""), S / 2, S * 0.85);
+    ctx.fillStyle = "#5f8593"; ctx.font = "600 22px Orbitron, Arial, sans-serif";
+    ctx.fillText("HOMESTEAD ELECTRIC · TRAINING GRID", S / 2, S * 0.93);
+    cv.toBlob(function (blob) {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "homestead-merit-" + String(name).toLowerCase().replace(/[^a-z0-9]+/g, "-") + ".png";
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+  };
+  img.src = LOGO;
 }
 
 /* Dev preview: fire the celebration on demand (owner only) */
@@ -1419,7 +1820,10 @@ window.toggleEdit = toggleEdit; window.doLogout = doLogout; window.openAdmin = o
 window.closeModal = closeModal; window.signOff = signOff; window.revokeBadge = revokeBadge;
 window.saveBadgeEdits = saveBadgeEdits; window.deleteBadge = deleteBadge; window.addBadge = addBadge;
 window.editRank = editRank; window.saveRankEdits = saveRankEdits; window.deleteRank = deleteRank;
-window.addRank = addRank; window.setRole = setRole; window.testFX = testFX;
+window.addRank = addRank; window.setRole = setRole; window.testFX = testFX; window.setProgressView = setProgressView; window.shareWin = shareWin;
+window.setRosterFilter = setRosterFilter; window.assignMentorSelf = assignMentorSelf; window.unassignMentor = unassignMentor; window.postFeedback = postFeedback;
+window.toggleBulk = toggleBulk; window.toggleBulkSel = toggleBulkSel; window.openBulkSignoff = openBulkSignoff; window.bulkSignOff = bulkSignOff;
+window.openDigest = openDigest;
 
 /* Apply Homestead branding once the DOM is ready */
 (function setupBrand(){
