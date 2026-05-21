@@ -326,7 +326,7 @@
     color: var(--cyan); margin-bottom: 7px; margin-top: 18px; font-weight: 600;
   }
   .setup-form label:first-child { margin-top: 0; }
-  input[type="text"], input[type="date"], textarea, select {
+  input[type="text"], input[type="date"], input[type="email"], input[type="password"], textarea, select {
     width: 100%; padding: 12px 14px;
     border: 1px solid var(--line); border-radius: 0;
     font-family: 'Rajdhani', sans-serif; font-size: 16px; font-weight: 500;
@@ -359,8 +359,10 @@
   button.ghost:hover { border-color: var(--cyan); color: var(--cyan); background: rgba(28,230,255,0.06); box-shadow: none; }
   button.danger { border-color: var(--magenta); color: var(--magenta); background: rgba(255,61,166,0.08); }
   button.danger:hover { background: var(--magenta); color: #04060c; box-shadow: 0 0 18px -2px rgba(255,61,166,0.7); }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
 
-  .toolbar { display: flex; gap: 7px; flex-wrap: wrap; justify-content: flex-end; margin-bottom: 22px; }
+  .toolbar { display: flex; gap: 7px; flex-wrap: wrap; justify-content: flex-end; margin-bottom: 22px; align-items: center; }
+  .toolbar .who { margin-right: auto; font-size: 12px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; font-weight: 600; }
   .toolbar button { padding: 7px 13px; font-size: 9px; letter-spacing: 1.5px; }
   .edit-banner {
     background: rgba(255,174,40,0.1); border: 1px solid var(--amber); color: var(--amber-soft);
@@ -368,6 +370,31 @@
     text-align: center; margin-bottom: 20px; font-weight: 600; font-family: 'Rajdhani';
     text-shadow: 0 0 10px rgba(255,174,40,0.4);
   }
+
+  .role-tag {
+    display: inline-block; font-family: 'Orbitron', sans-serif; font-size: 9px;
+    letter-spacing: 2px; text-transform: uppercase; padding: 3px 8px;
+    border: 1px solid var(--line); color: var(--cyan); margin-left: 6px;
+  }
+  .role-tag.foreman { color: var(--amber); border-color: rgba(255,174,40,0.5); }
+  .avatar {
+    width: 50px; height: 50px; flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+    font-family: 'Orbitron', sans-serif; font-weight: 900; font-size: 16px; color: #04060c;
+    background: linear-gradient(135deg, var(--cyan), var(--amber));
+    clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+  }
+  .auth-error { color: var(--magenta); font-size: 14px; margin-top: 14px; font-weight: 600; letter-spacing: 0.4px; min-height: 18px; }
+  .auth-toggle { margin-top: 20px; font-size: 14px; color: var(--muted); font-weight: 500; }
+  .auth-toggle a { color: var(--cyan); cursor: pointer; font-weight: 700; }
+  .auth-toggle a:hover { text-shadow: var(--glow-cyan); }
+  .loading-wrap { text-align: center; padding-top: 90px; color: var(--muted); }
+  .loading-wrap .spin {
+    width: 46px; height: 46px; margin: 0 auto 18px; border: 3px solid var(--line);
+    border-top-color: var(--cyan); border-radius: 50%; animation: spin 0.9s linear infinite;
+    box-shadow: var(--glow-cyan);
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-wrap .msg { font-family: 'Orbitron', sans-serif; letter-spacing: 2px; text-transform: uppercase; font-size: 12px; color: var(--cyan); }
 
   .modal-backdrop {
     position: fixed; inset: 0; background: rgba(2,4,8,0.82);
@@ -436,6 +463,7 @@
   .signoff-form .form-eyebrow { font-size: 11px; letter-spacing: 2.5px; text-transform: uppercase; color: var(--amber); font-weight: 600; margin-bottom: 14px; text-shadow: 0 0 10px rgba(255,174,40,0.4); }
   .signoff-form label { margin-top: 14px; }
   .signoff-form label:first-of-type { margin-top: 0; }
+  .locked-note { font-size: 13px; color: var(--muted); font-style: italic; margin-top: 14px; }
 
   /* Emblem icons */
   .emblem .em-icon { position: relative; z-index: 2; width: 40px; height: 40px; color: var(--muted); transition: color .2s, filter .2s; }
@@ -545,161 +573,29 @@
   <div class="modal" id="modal"></div>
 </div>
 
-<input type="file" id="importFile" accept=".json" style="display:none" />
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 
 <script>
 /* =========================================================================
-   Homestead Electric — Training Grid
+   Homestead Electric — Training Grid (connected / Firebase)
    ========================================================================= */
 
-const STORAGE_KEY = "homesteadTraining.v3";
-
-const DEFAULT_CURRICULUM = {
-  ranks: [
-    {
-      id: "rank-1",
-      name: "Layout & Rough-In",
-      subtitle: "Read the plan, mark the walls, prep the framing",
-      badges: [
-        { id: "b-markout", name: "Marking Out",
-          desc: "Lay out box, fixture, and switch locations on a residential rough-in.",
-          reqs: [
-            "Mark switch boxes at the company-standard height.",
-            "Mark receptacle locations per plan and NEC spacing rules.",
-            "Mark and confirm can-light and fixture layout from the print."
-          ]},
-        { id: "b-drill", name: "Drilling Holes",
-          desc: "Bore studs, plates, and joists cleanly for cable and conduit runs.",
-          reqs: [
-            "Pick the correct bit size for the run.",
-            "Bore in line and centered, within allowed depth zones.",
-            "Avoid plumbing, HVAC, and structural conflicts."
-          ]},
-        { id: "b-cans", name: "Can Layouts",
-          desc: "Plan and lay out recessed can lighting for a room.",
-          reqs: [
-            "Calculate spacing for even illumination.",
-            "Stay clear of joists, ducts, and other obstructions.",
-            "Verify IC-rated vs. non-IC where required."
-          ]}
-      ]
-    },
-    {
-      id: "rank-2",
-      name: "Wire Pulls & Runs",
-      subtitle: "Run the wire, land it cleanly, label everything",
-      badges: [
-        { id: "b-breakup", name: "Breaking Up Circuits",
-          desc: "Split loads correctly across circuits during rough-in.",
-          reqs: [
-            "Identify dedicated circuit requirements (kitchen, bath, laundry, etc.).",
-            "Balance general lighting and receptacle load.",
-            "Stay within the company standard for device count per circuit."
-          ]},
-        { id: "b-overhead", name: "Making Up Overhead",
-          desc: "Make up overhead boxes — fans, fixtures, 4/0 pancakes, etc.",
-          reqs: [
-            "Properly support fan-rated boxes.",
-            "Make up neutrals and grounds correctly.",
-            "Stub conductors at the right length for trim."
-          ]},
-        { id: "b-pulltape", name: "Pulling Wire / Tape Locates",
-          desc: "Pull cable through framing and use tape locates to find runs in walls.",
-          reqs: [
-            "Pull NM cable smoothly without damaging the jacket.",
-            "Use a tone generator and locator to trace a run.",
-            "Document hidden cable paths for the trim crew."
-          ]},
-        { id: "b-homerun", name: "Homeruns",
-          desc: "Run homerun cables cleanly from boxes back to the panel.",
-          reqs: [
-            "Identify circuit count and size at the panel.",
-            "Route cleanly through framing without sharp bends.",
-            "Label each homerun at the panel for make-up."
-          ]},
-        { id: "b-ser", name: "SER Runs",
-          desc: "Install SER cable for sub-feeds and large service drops.",
-          reqs: [
-            "Strip and terminate aluminum safely (anti-oxidant where required).",
-            "Secure SER per code spacing and bend radius.",
-            "Bond and land conductors correctly in the load center."
-          ]}
-      ]
-    },
-    {
-      id: "rank-3",
-      name: "Switching & Trim",
-      subtitle: "Devices, switching, and the make-up that customers see",
-      badges: [
-        { id: "b-switchconst", name: "Switches / Constant Power",
-          desc: "Wire single-pole switches and constant-power feeds.",
-          reqs: [
-            "Identify switched-hot vs. constant-hot at the box.",
-            "Wire the switch leg correctly back to the fixture.",
-            "Properly ground the device in metal vs. plastic boxes."
-          ]},
-        { id: "b-34way", name: "3 Ways / 4 Ways",
-          desc: "Wire multi-location switching for lighting circuits.",
-          reqs: [
-            "Wire a 3-way with two travelers and a common.",
-            "Add a 4-way between two 3-ways.",
-            "Troubleshoot a miswired 3-way circuit."
-          ]},
-        { id: "b-mupoutlets", name: "Making Up Outlets",
-          desc: "Terminate residential receptacles cleanly at trim.",
-          reqs: [
-            "Make tight pigtails or correct side-wire connections.",
-            "Properly land hot, neutral, and ground.",
-            "Set device plumb and flush in the box."
-          ]},
-        { id: "b-mupswitches", name: "Making Up Switches",
-          desc: "Terminate switches and dimmers at trim.",
-          reqs: [
-            "Identify and land hot, switched-hot, travelers, and ground.",
-            "Bundle conductors neatly back into the box.",
-            "Verify operation before plating."
-          ]}
-      ]
-    },
-    {
-      id: "rank-4",
-      name: "Make-Up & Advanced",
-      subtitle: "Panels, transfer switches, and the high-skill work",
-      badges: [
-        { id: "b-muppanel", name: "Making Up Panels",
-          desc: "Land and label conductors in a residential load center.",
-          reqs: [
-            "Strip and torque conductors to manufacturer spec.",
-            "Bond neutral and ground correctly at main vs. sub-panel.",
-            "Fill out the panel directory legibly and accurately."
-          ]},
-        { id: "b-ats", name: "Wiring ATS / Generators",
-          desc: "Install transfer switches and generator interconnects.",
-          reqs: [
-            "Identify and install the correct transfer switch type (ATS, MTS, interlock).",
-            "Land utility, generator, and load conductors correctly.",
-            "Verify mechanical interlock, labeling, and operation."
-          ]},
-        { id: "b-piping", name: "Piping in Unframed Walls",
-          desc: "Run conduit through framing and structure before walls are closed.",
-          reqs: [
-            "Lay out a clean run with minimum bends.",
-            "Bend EMT to fit a real-world path.",
-            "Support per code spacing and box offsets."
-          ]},
-        { id: "b-lcp", name: "Lighting Control Panels",
-          desc: "Install and terminate lighting control panels.",
-          reqs: [
-            "Identify line and load terminals.",
-            "Land and label each circuit cleanly.",
-            "Verify low-voltage control wiring per manufacturer."
-          ]}
-      ]
-    }
-  ]
+const firebaseConfig = {
+  apiKey: "AIzaSyDrPUDSdCK-TyrT0Mc4Xh5Rgz73wnowpYw",
+  authDomain: "homestead-training.firebaseapp.com",
+  projectId: "homestead-training",
+  storageBucket: "homestead-training.firebasestorage.app",
+  messagingSenderId: "660386038243",
+  appId: "1:660386038243:web:951aa34c876661203a60d6"
 };
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+const OWNER_EMAIL = "justin@homesteadelectric.net";
 
-/* ---------- Merit icons (custom line art per merit) ---------- */
+/* ---------- Merit icons ---------- */
 const ICONS = {
   "b-markout":   '<circle cx="12" cy="12" r="3"/><path d="M12 2v5M12 17v5M2 12h5M17 12h5"/>',
   "b-drill":     '<path d="M3 8h9v5H3z"/><path d="M12 9.2h4l4-2.2v6.4l-4-2.2h-4"/><path d="M6 13v4.5h3"/>',
@@ -724,182 +620,367 @@ function iconSvg(id, cls) {
   return '<svg class="' + (cls || "em-icon") + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">' + inner + '</svg>';
 }
 
-/* ---------- State ---------- */
-let state = loadState();
-let editMode = false;
+/* ---------- Default curriculum (seeded once by a foreman/owner) ---------- */
+const DEFAULT_CURRICULUM = {
+  ranks: [
+    { id: "rank-1", name: "Layout & Rough-In", subtitle: "Read the plan, mark the walls, prep the framing", badges: [
+      { id: "b-markout", name: "Marking Out", desc: "Lay out box, fixture, and switch locations on a residential rough-in.", reqs: ["Mark switch boxes at the company-standard height.","Mark receptacle locations per plan and NEC spacing rules.","Mark and confirm can-light and fixture layout from the print."]},
+      { id: "b-drill", name: "Drilling Holes", desc: "Bore studs, plates, and joists cleanly for cable and conduit runs.", reqs: ["Pick the correct bit size for the run.","Bore in line and centered, within allowed depth zones.","Avoid plumbing, HVAC, and structural conflicts."]},
+      { id: "b-cans", name: "Can Layouts", desc: "Plan and lay out recessed can lighting for a room.", reqs: ["Calculate spacing for even illumination.","Stay clear of joists, ducts, and other obstructions.","Verify IC-rated vs. non-IC where required."]}
+    ]},
+    { id: "rank-2", name: "Wire Pulls & Runs", subtitle: "Run the wire, land it cleanly, label everything", badges: [
+      { id: "b-breakup", name: "Breaking Up Circuits", desc: "Split loads correctly across circuits during rough-in.", reqs: ["Identify dedicated circuit requirements (kitchen, bath, laundry, etc.).","Balance general lighting and receptacle load.","Stay within the company standard for device count per circuit."]},
+      { id: "b-overhead", name: "Making Up Overhead", desc: "Make up overhead boxes — fans, fixtures, 4/0 pancakes, etc.", reqs: ["Properly support fan-rated boxes.","Make up neutrals and grounds correctly.","Stub conductors at the right length for trim."]},
+      { id: "b-pulltape", name: "Pulling Wire / Tape Locates", desc: "Pull cable through framing and use tape locates to find runs in walls.", reqs: ["Pull NM cable smoothly without damaging the jacket.","Use a tone generator and locator to trace a run.","Document hidden cable paths for the trim crew."]},
+      { id: "b-homerun", name: "Homeruns", desc: "Run homerun cables cleanly from boxes back to the panel.", reqs: ["Identify circuit count and size at the panel.","Route cleanly through framing without sharp bends.","Label each homerun at the panel for make-up."]},
+      { id: "b-ser", name: "SER Runs", desc: "Install SER cable for sub-feeds and large service drops.", reqs: ["Strip and terminate aluminum safely (anti-oxidant where required).","Secure SER per code spacing and bend radius.","Bond and land conductors correctly in the load center."]}
+    ]},
+    { id: "rank-3", name: "Switching & Trim", subtitle: "Devices, switching, and the make-up that customers see", badges: [
+      { id: "b-switchconst", name: "Switches / Constant Power", desc: "Wire single-pole switches and constant-power feeds.", reqs: ["Identify switched-hot vs. constant-hot at the box.","Wire the switch leg correctly back to the fixture.","Properly ground the device in metal vs. plastic boxes."]},
+      { id: "b-34way", name: "3 Ways / 4 Ways", desc: "Wire multi-location switching for lighting circuits.", reqs: ["Wire a 3-way with two travelers and a common.","Add a 4-way between two 3-ways.","Troubleshoot a miswired 3-way circuit."]},
+      { id: "b-mupoutlets", name: "Making Up Outlets", desc: "Terminate residential receptacles cleanly at trim.", reqs: ["Make tight pigtails or correct side-wire connections.","Properly land hot, neutral, and ground.","Set device plumb and flush in the box."]},
+      { id: "b-mupswitches", name: "Making Up Switches", desc: "Terminate switches and dimmers at trim.", reqs: ["Identify and land hot, switched-hot, travelers, and ground.","Bundle conductors neatly back into the box.","Verify operation before plating."]}
+    ]},
+    { id: "rank-4", name: "Make-Up & Advanced", subtitle: "Panels, transfer switches, and the high-skill work", badges: [
+      { id: "b-muppanel", name: "Making Up Panels", desc: "Land and label conductors in a residential load center.", reqs: ["Strip and torque conductors to manufacturer spec.","Bond neutral and ground correctly at main vs. sub-panel.","Fill out the panel directory legibly and accurately."]},
+      { id: "b-ats", name: "Wiring ATS / Generators", desc: "Install transfer switches and generator interconnects.", reqs: ["Identify and install the correct transfer switch type (ATS, MTS, interlock).","Land utility, generator, and load conductors correctly.","Verify mechanical interlock, labeling, and operation."]},
+      { id: "b-piping", name: "Piping in Unframed Walls", desc: "Run conduit through framing and structure before walls are closed.", reqs: ["Lay out a clean run with minimum bends.","Bend EMT to fit a real-world path.","Support per code spacing and box offsets."]},
+      { id: "b-lcp", name: "Lighting Control Panels", desc: "Install and terminate lighting control panels.", reqs: ["Identify line and load terminals.","Land and label each circuit cleanly.","Verify low-voltage control wiring per manufacturer."]}
+    ]}
+  ]
+};
+
+/* ---------- App state ---------- */
+let me = null;          // firebase auth user
+let profile = null;     // my users/{uid} doc
+let curriculum = null;  // config/curriculum
+let apprentices = [];   // foreman roster
+let selectedAppId = null, selectedAppData = null; // foreman: viewing one apprentice
 let view = { name: "home", rankId: null };
+let editMode = false;
+let authMode = "login";
 
-function loadState() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      if (parsed && parsed.curriculum && parsed.apprentice) return parsed;
+let unsubProfile = null, unsubCurriculum = null, unsubRoster = null, unsubSelApp = null;
+let curriculumSubbed = false, rosterSubbed = false;
+let prevEarnedIds = null; // apprentice self celebration tracking
+
+const C = () => document.getElementById("container");
+function isForeman() { return profile && (profile.role === "foreman" || profile.role === "owner"); }
+function isOwner() { return !!me && me.email && me.email.toLowerCase() === OWNER_EMAIL; }
+
+/* ---------- Auth lifecycle ---------- */
+auth.onAuthStateChanged((user) => {
+  cleanup();
+  me = user;
+  if (!user) { profile = null; authMode = "login"; renderAuth(); return; }
+  renderLoading("Connecting to the grid…");
+  subscribeProfile(user.uid);
+});
+
+function cleanup() {
+  if (unsubProfile) unsubProfile(); if (unsubCurriculum) unsubCurriculum();
+  if (unsubRoster) unsubRoster(); if (unsubSelApp) unsubSelApp();
+  unsubProfile = unsubCurriculum = unsubRoster = unsubSelApp = null;
+  curriculumSubbed = rosterSubbed = false;
+  profile = null; curriculum = null; apprentices = [];
+  selectedAppId = null; selectedAppData = null; prevEarnedIds = null;
+  view = { name: "home" }; editMode = false;
+}
+
+function subscribeProfile(uid) {
+  unsubProfile = db.collection("users").doc(uid).onSnapshot((snap) => {
+    if (!snap.exists) { renderLoading("Setting up your account…"); return; }
+    profile = snap.data();
+    if (profile.role === "apprentice") {
+      const ids = Object.keys(profile.earnedBadges || {});
+      if (prevEarnedIds !== null) {
+        const fresh = ids.filter(x => !prevEarnedIds.includes(x));
+        if (fresh.length) {
+          const bid = fresh[fresh.length - 1];
+          const b = findBadge(bid);
+          const eb = (profile.earnedBadges || {})[bid];
+          if (b) celebrate(b, eb && eb.trainer);
+        }
+      }
+      prevEarnedIds = ids;
     }
-  } catch (e) {}
-  return null;
-}
-function saveState() {
-  if (!state) return;
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    subscribeCurriculum();
+    if (isForeman()) subscribeRoster();
+    render();
+  }, (err) => { renderError(err.message); });
 }
 
-/* ---------- Setup ---------- */
-function renderSetup() {
-  const c = document.getElementById("container");
-  c.innerHTML = `
-    <div class="setup-wrap">
-      <div class="eyebrow"><span>Initialize</span><span class="sep">·</span><span class="sub">Residential Grid</span></div>
-      <h1 class="display">ENTER THE GRID<span class="punct">.</span></h1>
-      <p class="subhead">A field-tested progression for residential electricians. Power up your skills, light up merits, and climb the ranks.</p>
-      <div class="setup-form">
-        <label for="setupName">Apprentice Name</label>
-        <input type="text" id="setupName" placeholder="Jordan Martinez" autofocus />
-        <label for="setupStart">Start Date</label>
-        <input type="date" id="setupStart" value="${new Date().toISOString().slice(0,10)}" />
-        <label for="setupCompany">Company / Crew</label>
-        <input type="text" id="setupCompany" value="Homestead Electric" />
-        <div style="margin-top:24px; display:flex; justify-content:flex-end;">
-          <button class="primary" id="setupGo">Power On →</button>
-        </div>
-      </div>
-    </div>
-  `;
-  document.getElementById("setupGo").addEventListener("click", () => {
-    const name = document.getElementById("setupName").value.trim() || "Apprentice";
-    const start = document.getElementById("setupStart").value;
-    const company = document.getElementById("setupCompany").value.trim();
-    state = {
-      apprentice: { name, startDate: start, company, earnedBadges: {} },
-      curriculum: JSON.parse(JSON.stringify(DEFAULT_CURRICULUM))
-    };
-    saveState();
-    view = { name: "home" };
+function subscribeCurriculum() {
+  if (curriculumSubbed) return; curriculumSubbed = true;
+  unsubCurriculum = db.collection("config").doc("curriculum").onSnapshot((snap) => {
+    if (snap.exists) { curriculum = snap.data(); }
+    else {
+      curriculum = null;
+      if (isForeman()) {
+        db.collection("config").doc("curriculum")
+          .set(JSON.parse(JSON.stringify(DEFAULT_CURRICULUM)))
+          .catch(e => renderError(e.message));
+      }
+    }
     render();
+  }, (err) => { renderError(err.message); });
+}
+
+function subscribeRoster() {
+  if (rosterSubbed) return; rosterSubbed = true;
+  unsubRoster = db.collection("users").where("role", "==", "apprentice").onSnapshot((snap) => {
+    apprentices = snap.docs.map(d => Object.assign({ id: d.id }, d.data()));
+    apprentices.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+    render();
+  }, (err) => { renderError(err.message); });
+}
+
+function subscribeSelApp(uid) {
+  if (unsubSelApp) unsubSelApp();
+  unsubSelApp = db.collection("users").doc(uid).onSnapshot((snap) => {
+    if (snap.exists) { selectedAppData = Object.assign({ id: snap.id }, snap.data()); render(); }
   });
 }
 
-/* ---------- Router ---------- */
-function render() {
-  if (!state) { renderSetup(); return; }
-  if (view.name === "home") return renderHome();
-  if (view.name === "rank") return renderRank(view.rankId);
+/* ---------- Auth actions ---------- */
+function doSignup(name, email, password, company, errEl) {
+  auth.createUserWithEmailAndPassword(email.trim(), password)
+    .then((cred) => {
+      const role = (email.trim().toLowerCase() === OWNER_EMAIL) ? "owner" : "apprentice";
+      return db.collection("users").doc(cred.user.uid).set({
+        name: name.trim(), email: email.trim().toLowerCase(), role: role,
+        company: (company || "Homestead Electric").trim(),
+        startDate: new Date().toISOString().slice(0, 10),
+        earnedBadges: {},
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+    })
+    .catch((e) => { if (errEl) errEl.textContent = friendlyAuthError(e); });
+}
+function doLogin(email, password, errEl) {
+  auth.signInWithEmailAndPassword(email.trim(), password)
+    .catch((e) => { if (errEl) errEl.textContent = friendlyAuthError(e); });
+}
+function doLogout() { auth.signOut(); }
+function friendlyAuthError(e) {
+  const m = (e && e.code) || "";
+  if (m.includes("email-already-in-use")) return "That email already has an account — try logging in.";
+  if (m.includes("invalid-credential") || m.includes("wrong-password") || m.includes("user-not-found")) return "Email or password is incorrect.";
+  if (m.includes("weak-password")) return "Password must be at least 6 characters.";
+  if (m.includes("invalid-email")) return "That doesn't look like a valid email.";
+  return (e && e.message) || "Something went wrong.";
 }
 
-/* ---------- Home ---------- */
-function renderHome() {
-  const c = document.getElementById("container");
-  const { apprentice, curriculum } = state;
-  const totalBadges = curriculum.ranks.reduce((s, r) => s + r.badges.length, 0);
-  const earnedCount = Object.keys(apprentice.earnedBadges).length;
-  const pct = totalBadges === 0 ? 0 : Math.round((earnedCount / totalBadges) * 100);
-  const currentRank = computeCurrentRank(curriculum, apprentice);
-  const nameUpper = apprentice.name.toUpperCase();
+/* ---------- Render router ---------- */
+function render() {
+  if (!me) { renderAuth(); return; }
+  if (!profile) { renderLoading("Loading your profile…"); return; }
+  if (curriculum === null) {
+    renderLoading(isForeman() ? "Setting up the curriculum…" : "Waiting for your foreman to set up the curriculum…");
+    return;
+  }
+  if (isForeman()) {
+    if (view.name === "admin") return renderAdmin();
+    if (selectedAppId && selectedAppData) {
+      if (view.name === "rank") return renderRankView(selectedAppData, view.rankId, true);
+      return renderProgressHome(selectedAppData, true);
+    }
+    return renderRoster();
+  }
+  // apprentice
+  if (view.name === "rank") return renderRankView(profile, view.rankId, false);
+  return renderProgressHome(profile, false);
+}
 
-  c.innerHTML = `
-    <div class="toolbar">
-      <button class="ghost" onclick="toggleEdit()">${editMode ? "Done" : "Edit"}</button>
-      <button class="ghost" onclick="doExport()">Export</button>
-      <button class="ghost" onclick="document.getElementById('importFile').click()">Import</button>
-      <button class="ghost" onclick="doReset()">Reset</button>
-    </div>
-    ${editMode ? '<div class="edit-banner">Edit mode active — Click ranks to modify. Click merits inside a rank to edit them.</div>' : ''}
+function renderLoading(msg) {
+  C().innerHTML = '<div class="loading-wrap"><div class="spin"></div><div class="msg">' + escapeHtml(msg) + '</div></div>';
+}
+function renderError(msg) {
+  C().innerHTML = '<div class="loading-wrap"><div class="msg" style="color:var(--magenta)">Error</div><p class="subhead" style="margin-top:14px">' + escapeHtml(msg) + '</p><button onclick="location.reload()">Reload</button></div>';
+}
 
-    <div class="eyebrow">
-      <span>Apprentice</span><span class="sep">·</span><span class="sub">${escapeHtml(apprentice.company || "Residential")}</span>
-    </div>
-    <h1 class="display-name">${escapeHtml(nameUpper)}<span class="punct">.</span></h1>
-    <p class="subhead" style="margin-top:8px">Online since ${formatDate(apprentice.startDate)} · Current rank: ${escapeHtml(currentRank.name)} ${editMode ? '<button class="ghost" style="margin-left:10px; padding:4px 10px; font-size:9px;" onclick="editProfile()">Edit profile</button>' : ''}</p>
-
-    <div class="stats-row">
-      <div class="stat">
-        <div class="stat-lbl">Merits Earned</div>
-        <div class="stat-val">${earnedCount}<span class="frac"> / ${totalBadges}</span></div>
+/* ---------- Auth screen ---------- */
+function renderAuth() {
+  const signup = authMode === "signup";
+  C().innerHTML = `
+    <div class="setup-wrap">
+      <div class="eyebrow"><span>${signup ? "Create Account" : "Sign In"}</span><span class="sep">·</span><span class="sub">Residential Grid</span></div>
+      <h1 class="display">${signup ? "JOIN THE GRID" : "ENTER THE GRID"}<span class="punct">.</span></h1>
+      <p class="subhead">${signup ? "Make your account to start earning merits. New members join as apprentices." : "Log in to see your progress and light up merits."}</p>
+      <div class="setup-form">
+        ${signup ? `
+          <label for="aName">Full Name</label>
+          <input type="text" id="aName" placeholder="Jordan Martinez" />
+        ` : ""}
+        <label for="aEmail">Email</label>
+        <input type="email" id="aEmail" placeholder="you@homesteadelectric.net" autocomplete="email" />
+        <label for="aPass">Password</label>
+        <input type="password" id="aPass" placeholder="${signup ? "At least 6 characters" : "Your password"}" autocomplete="${signup ? "new-password" : "current-password"}" />
+        ${signup ? `
+          <label for="aCo">Company / Crew</label>
+          <input type="text" id="aCo" value="Homestead Electric" />
+        ` : ""}
+        <div class="auth-error" id="authErr"></div>
+        <div style="margin-top:18px; display:flex; justify-content:flex-end;">
+          <button class="primary" id="authGo">${signup ? "Create Account →" : "Log In →"}</button>
+        </div>
       </div>
-      <div class="stat">
-        <div class="stat-lbl">Grid Charge</div>
-        <div class="stat-val">${pct}<span class="frac">%</span></div>
+      <div class="auth-toggle">
+        ${signup ? "Already have an account? <a id='toLogin'>Log in</a>" : "New here? <a id='toSignup'>Create an account</a>"}
       </div>
-      <div class="stat">
-        <div class="stat-lbl">Rank</div>
-        <div class="stat-val small">${escapeHtml(currentRank.name)}</div>
-      </div>
-    </div>
-
-    <div class="section-head">
-      <h2>Ranks</h2>
-      <span class="meta">${curriculum.ranks.length} Levels · Sequential</span>
-    </div>
-    <ul class="item-list" id="rankList"></ul>
-
-    ${editMode ? '<button class="add-row" onclick="addRank()">+ Add a New Rank</button>' : ''}
-
-    <div class="status-bar">
-      <span class="dot"></span>
-      <span>Grid online · Local to this device · Saved ${new Date().toLocaleString()}</span>
-    </div>
-
-    <div class="footer-links">
-      <a onclick="doExport()">Export progress</a>
-      <a onclick="document.getElementById('importFile').click()">Import progress</a>
     </div>
   `;
+  const errEl = document.getElementById("authErr");
+  document.getElementById("authGo").addEventListener("click", () => {
+    const email = (document.getElementById("aEmail").value || "");
+    const pass = (document.getElementById("aPass").value || "");
+    if (!email || !pass) { errEl.textContent = "Enter your email and password."; return; }
+    if (signup) {
+      const name = (document.getElementById("aName").value || "");
+      const co = (document.getElementById("aCo").value || "");
+      if (!name.trim()) { errEl.textContent = "Enter your name."; return; }
+      doSignup(name, email, pass, co, errEl);
+    } else {
+      doLogin(email, pass, errEl);
+    }
+  });
+  const toS = document.getElementById("toSignup");
+  const toL = document.getElementById("toLogin");
+  if (toS) toS.addEventListener("click", () => { authMode = "signup"; renderAuth(); });
+  if (toL) toL.addEventListener("click", () => { authMode = "login"; renderAuth(); });
+}
 
+/* ---------- Top bar (logged in) ---------- */
+function topBar() {
+  const roleLabel = isOwner() ? "Owner" : (profile.role === "foreman" ? "Foreman" : "Apprentice");
+  const roleClass = isForeman() ? "foreman" : "";
+  return `
+    <div class="toolbar">
+      <span class="who">${escapeHtml(profile.name || me.email)}<span class="role-tag ${roleClass}">${roleLabel}</span></span>
+      ${isForeman() ? `<button class="ghost" onclick="toggleEdit()">${editMode ? "Done Editing" : "Edit Curriculum"}</button>` : ""}
+      ${isOwner() ? `<button class="ghost" onclick="openAdmin()">Manage Crew</button>` : ""}
+      <button class="ghost" onclick="doLogout()">Log Out</button>
+    </div>
+  `;
+}
+
+/* ---------- Foreman roster ---------- */
+function renderRoster() {
+  const total = curriculum.ranks.reduce((s, r) => s + r.badges.length, 0);
+  C().innerHTML = `
+    ${topBar()}
+    ${editMode ? '<div class="edit-banner">Edit mode — open any apprentice, then click ranks or merits to modify the shared curriculum.</div>' : ''}
+    <div class="eyebrow"><span>Foreman</span><span class="sep">·</span><span class="sub">${escapeHtml(profile.company || "Crew")}</span></div>
+    <h1 class="display-name">THE CREW<span class="punct">.</span></h1>
+    <p class="subhead" style="margin-top:8px">Pick an apprentice to view their progress and sign off merits.</p>
+    <div class="section-head"><h2>Apprentices</h2><span class="meta">${apprentices.length} On Roster</span></div>
+    <ul class="item-list" id="rosterList"></ul>
+  `;
+  const list = document.getElementById("rosterList");
+  if (!apprentices.length) {
+    list.innerHTML = '<p class="subhead">No apprentices yet. Have them open the app and create an account — they\'ll appear here automatically.</p>';
+    return;
+  }
+  apprentices.forEach((a, idx) => {
+    const earned = Object.keys(a.earnedBadges || {}).length;
+    const pct = total ? Math.round((earned / total) * 100) : 0;
+    const initials = (a.name || "?").split(/\s+/).map(s => s[0]).filter(Boolean).slice(0, 2).join("").toUpperCase();
+    const li = document.createElement("li");
+    li.className = "item rise";
+    li.style.animationDelay = (idx * 0.05) + "s";
+    li.innerHTML = `
+      <div class="avatar">${escapeHtml(initials)}</div>
+      <div class="body">
+        <div class="title">${escapeHtml(a.name || a.email)}</div>
+        <div class="sub">${earned} of ${total} merits · ${pct}%</div>
+        <div class="progress-line"><div class="fill" style="width:${pct}%"></div></div>
+      </div>
+      <div class="arrow">▶</div>
+    `;
+    li.addEventListener("click", () => {
+      selectedAppId = a.id; selectedAppData = a; view = { name: "home" };
+      subscribeSelApp(a.id); window.scrollTo(0, 0); render();
+    });
+    list.appendChild(li);
+  });
+}
+
+/* ---------- Progress home (rank list) for a given user ---------- */
+function renderProgressHome(userData, foremanView) {
+  const total = curriculum.ranks.reduce((s, r) => s + r.badges.length, 0);
+  const earnedMap = userData.earnedBadges || {};
+  const earnedCount = Object.keys(earnedMap).length;
+  const pct = total ? Math.round((earnedCount / total) * 100) : 0;
+  const currentRank = computeCurrentRank(earnedMap);
+  const nameUpper = (userData.name || "Apprentice").toUpperCase();
+
+  C().innerHTML = `
+    ${topBar()}
+    ${editMode ? '<div class="edit-banner">Edit mode — click a rank to rename it, or open a merit to edit it. Changes apply to everyone.</div>' : ''}
+    ${foremanView ? '<button class="back-link" onclick="backToRoster()">Back to crew</button>' : ''}
+    <div class="eyebrow"><span>${foremanView ? "Apprentice" : "Apprentice"}</span><span class="sep">·</span><span class="sub">${escapeHtml(userData.company || "Residential")}</span></div>
+    <h1 class="display-name">${escapeHtml(nameUpper)}<span class="punct">.</span></h1>
+    <p class="subhead" style="margin-top:8px">Online since ${formatDate(userData.startDate)} · Current rank: ${escapeHtml(currentRank.name)}</p>
+    <div class="stats-row">
+      <div class="stat"><div class="stat-lbl">Merits Earned</div><div class="stat-val">${earnedCount}<span class="frac"> / ${total}</span></div></div>
+      <div class="stat"><div class="stat-lbl">Grid Charge</div><div class="stat-val">${pct}<span class="frac">%</span></div></div>
+      <div class="stat"><div class="stat-lbl">Rank</div><div class="stat-val small">${escapeHtml(currentRank.name)}</div></div>
+    </div>
+    <div class="section-head"><h2>Ranks</h2><span class="meta">${curriculum.ranks.length} Levels · Sequential</span></div>
+    <ul class="item-list" id="rankList"></ul>
+    ${editMode ? '<button class="add-row" onclick="addRank()">+ Add a New Rank</button>' : ''}
+    <div class="status-bar"><span class="dot"></span><span>Live · Synced to the grid in real time</span></div>
+  `;
   const list = document.getElementById("rankList");
   curriculum.ranks.forEach((rank, idx) => {
-    const earnedInRank = rank.badges.filter(b => apprentice.earnedBadges[b.id]).length;
+    const inRank = rank.badges.filter(b => earnedMap[b.id]).length;
     const totalInRank = rank.badges.length;
-    const rankPct = totalInRank === 0 ? 0 : Math.round((earnedInRank / totalInRank) * 100);
-    const isComplete = totalInRank > 0 && earnedInRank === totalInRank;
-
+    const rankPct = totalInRank ? Math.round((inRank / totalInRank) * 100) : 0;
+    const complete = totalInRank > 0 && inRank === totalInRank;
     const li = document.createElement("li");
-    li.className = "item rise" + (isComplete ? " complete-rank" : "");
+    li.className = "item rise" + (complete ? " complete-rank" : "");
     li.style.animationDelay = (idx * 0.07) + "s";
     li.innerHTML = `
       <div class="num">${String(idx + 1).padStart(2, "0")}</div>
       <div class="body">
         <div class="title">${escapeHtml(rank.name)}</div>
         <div class="sub">${escapeHtml(rank.subtitle || "")}</div>
-        <div class="rank-progress">${earnedInRank} of ${totalInRank} merits · ${rankPct}%</div>
+        <div class="rank-progress">${inRank} of ${totalInRank} merits · ${rankPct}%</div>
         <div class="progress-line"><div class="fill" style="width:${rankPct}%"></div></div>
       </div>
       <div class="arrow">▶</div>
     `;
-    li.addEventListener("click", () => { view = { name: "rank", rankId: rank.id }; window.scrollTo(0,0); render(); });
+    li.addEventListener("click", () => { view = { name: "rank", rankId: rank.id }; window.scrollTo(0, 0); render(); });
     list.appendChild(li);
   });
 }
 
-/* ---------- Rank (merit tiles) ---------- */
-function renderRank(rankId) {
-  const c = document.getElementById("container");
-  const { apprentice, curriculum } = state;
+/* ---------- Rank view (merit tiles) ---------- */
+function renderRankView(userData, rankId, foremanView) {
   const rank = curriculum.ranks.find(r => r.id === rankId);
   if (!rank) { view = { name: "home" }; return render(); }
   const idx = curriculum.ranks.findIndex(r => r.id === rankId);
-  const earnedInRank = rank.badges.filter(b => apprentice.earnedBadges[b.id]).length;
+  const earnedMap = userData.earnedBadges || {};
+  const inRank = rank.badges.filter(b => earnedMap[b.id]).length;
   const totalInRank = rank.badges.length;
-  const rankPct = totalInRank === 0 ? 0 : Math.round((earnedInRank / totalInRank) * 100);
+  const rankPct = totalInRank ? Math.round((inRank / totalInRank) * 100) : 0;
 
-  c.innerHTML = `
-    <button class="back-link" onclick="goHome()">Back to ranks</button>
+  C().innerHTML = `
+    ${topBar()}
+    <button class="back-link" onclick="backToHome()">Back to ranks</button>
     <div class="rank-hero">
-      <div class="eyebrow"><span>Rank ${String(idx + 1).padStart(2,"0")}</span><span class="sep">·</span><span class="sub">${earnedInRank} / ${totalInRank} online</span></div>
+      <div class="eyebrow"><span>Rank ${String(idx + 1).padStart(2, "0")}</span><span class="sep">·</span><span class="sub">${inRank} / ${totalInRank} online</span></div>
       <h1 class="display">${escapeHtml(rank.name)}<span class="punct">.</span></h1>
-      <p class="subhead">${escapeHtml(rank.subtitle || "")}</p>
+      <p class="subhead">${escapeHtml(rank.subtitle || "")}${foremanView ? " · " + escapeHtml(userData.name || "") : ""}</p>
       ${editMode ? '<button class="ghost" onclick="editRank(\'' + rank.id + '\')">Edit rank</button>' : ''}
     </div>
-    <div class="section-head">
-      <h2>Merits</h2>
-      <span class="meta">${rankPct}% Charged</span>
-    </div>
+    <div class="section-head"><h2>Merits</h2><span class="meta">${rankPct}% Charged</span></div>
     <div class="badge-grid" id="badgeGrid"></div>
     ${editMode ? '<button class="add-row" onclick="addBadge(\'' + rank.id + '\')">+ Add a New Merit</button>' : ''}
   `;
-
   const grid = document.getElementById("badgeGrid");
   rank.badges.forEach((badge, bidx) => {
-    const earned = apprentice.earnedBadges[badge.id];
+    const earned = earnedMap[badge.id];
     const tile = document.createElement("div");
     tile.className = "badge-tile rise" + (earned ? " earned" : "");
     tile.style.animationDelay = (bidx * 0.06) + "s";
@@ -913,27 +994,18 @@ function renderRank(rankId) {
       <div class="badge-name">${escapeHtml(badge.name)}</div>
       <div class="badge-status">${earned ? "Earned · " + formatDate(earned.date) : (badge.reqs || []).length + " Reqs"}</div>
     `;
-    tile.addEventListener("click", () => openBadge(rank.id, badge.id));
+    tile.addEventListener("click", () => openBadge(userData, rank.id, badge.id, foremanView));
     grid.appendChild(tile);
   });
 }
 
-function goHome() { view = { name: "home" }; window.scrollTo(0,0); render(); }
-
-function computeCurrentRank(curriculum, apprentice) {
-  for (const rank of curriculum.ranks) {
-    const allEarned = rank.badges.length > 0 && rank.badges.every(b => apprentice.earnedBadges[b.id]);
-    if (!allEarned) return rank;
-  }
-  return curriculum.ranks[curriculum.ranks.length - 1] || { name: "—" };
-}
-
 /* ---------- Badge modal ---------- */
-function openBadge(rankId, badgeId) {
-  const rank = state.curriculum.ranks.find(r => r.id === rankId);
+function openBadge(userData, rankId, badgeId, foremanView) {
+  const rank = curriculum.ranks.find(r => r.id === rankId);
   const badge = rank.badges.find(b => b.id === badgeId);
-  const earned = state.apprentice.earnedBadges[badgeId];
-  const today = new Date().toISOString().slice(0,10);
+  const earned = (userData.earnedBadges || {})[badgeId];
+  const today = new Date().toISOString().slice(0, 10);
+  const canSignOff = foremanView && isForeman();
 
   const modal = document.getElementById("modal");
   modal.innerHTML = `
@@ -941,9 +1013,7 @@ function openBadge(rankId, badgeId) {
     <div class="modal-head">
       <div class="eyebrow"><span>${escapeHtml(rank.name)}</span><span class="sep">·</span><span class="sub">Merit</span></div>
       <h3>${editMode ? '<input type="text" id="bName" value="' + escapeAttr(badge.name) + '" style="font: inherit; color: inherit; border: none; border-bottom: 1px dashed var(--line); width: 100%; padding: 4px 0; background: transparent;" />' : escapeHtml(badge.name)}</h3>
-      ${editMode
-        ? '<textarea id="bDesc" style="margin-top:10px">' + escapeHtml(badge.desc || "") + '</textarea>'
-        : (badge.desc ? '<div class="desc">' + escapeHtml(badge.desc) + '</div>' : "")}
+      ${editMode ? '<textarea id="bDesc" style="margin-top:10px">' + escapeHtml(badge.desc || "") + '</textarea>' : (badge.desc ? '<div class="desc">' + escapeHtml(badge.desc) + '</div>' : "")}
     </div>
     <div class="modal-body">
       <div class="req-section">
@@ -952,7 +1022,7 @@ function openBadge(rankId, badgeId) {
           ? '<textarea id="bReqs" rows="6" placeholder="One requirement per line">' + escapeHtml((badge.reqs || []).join("\n")) + '</textarea>'
           : '<ol class="req-list">' + (badge.reqs || []).map(r => '<li>' + escapeHtml(r) + '</li>').join("") + '</ol>'}
       </div>
-      ${!editMode ? (earned ? `
+      ${editMode ? "" : (earned ? `
         <div class="req-section">
           <h4>Sign-Off</h4>
           <div class="signoff-card">
@@ -962,195 +1032,201 @@ function openBadge(rankId, badgeId) {
             ${earned.notes ? '<div class="notes">"' + escapeHtml(earned.notes) + '"</div>' : ""}
           </div>
         </div>
-      ` : `
+      ` : (canSignOff ? `
         <div class="req-section">
           <h4>Award This Merit</h4>
           <div class="signoff-form">
             <div class="form-eyebrow">— Trainer Sign-Off</div>
             <label>Trainer / Verifier Name</label>
-            <input type="text" id="trainerName" placeholder="Justin Cloward" />
+            <input type="text" id="trainerName" value="${escapeAttr(profile.name || "")}" />
             <label>Date</label>
             <input type="date" id="signoffDate" value="${today}" />
             <label>Notes (optional)</label>
             <textarea id="signoffNotes" placeholder="Verified on the Anderson job"></textarea>
           </div>
         </div>
-      `) : ""}
+      ` : `<p class="locked-note">Only a foreman can sign off this merit. Show your work to your foreman to get it lit up.</p>`))}
     </div>
     <div class="modal-foot">
       <div>
-        ${editMode
-          ? '<button class="danger" onclick="deleteBadge(\'' + rankId + '\',\'' + badgeId + '\')">Delete</button>'
-          : (earned ? '<button class="danger" onclick="revokeBadge(\'' + badgeId + '\')">Revoke</button>' : "")}
+        ${editMode ? '<button class="danger" onclick="deleteBadge(\'' + rankId + '\',\'' + badgeId + '\')">Delete</button>'
+          : (earned && canSignOff ? '<button class="danger" onclick="revokeBadge(\'' + badgeId + '\')">Revoke</button>' : "")}
       </div>
       <div class="right">
         <button class="ghost" onclick="closeModal()">Close</button>
-        ${editMode
-          ? '<button class="primary" onclick="saveBadgeEdits(\'' + rankId + '\',\'' + badgeId + '\')">Save</button>'
-          : (earned ? "" : '<button class="primary" onclick="signOffBadge(\'' + badgeId + '\')">Light It Up →</button>')}
+        ${editMode ? '<button class="primary" onclick="saveBadgeEdits(\'' + rankId + '\',\'' + badgeId + '\')">Save</button>'
+          : (!earned && canSignOff ? '<button class="primary" onclick="signOff(\'' + badgeId + '\')">Light It Up →</button>' : "")}
       </div>
     </div>
   `;
   document.getElementById("modalBackdrop").classList.add("open");
 }
-
 function closeModal() { document.getElementById("modalBackdrop").classList.remove("open"); }
 
-function signOffBadge(badgeId) {
-  const trainer = document.getElementById("trainerName").value.trim();
+/* ---------- Sign-off (foreman writes to the apprentice doc) ---------- */
+function signOff(badgeId) {
+  if (!selectedAppId) return;
+  const trainer = (document.getElementById("trainerName").value || "").trim();
   const date = document.getElementById("signoffDate").value;
-  const notes = document.getElementById("signoffNotes").value.trim();
+  const notes = (document.getElementById("signoffNotes").value || "").trim();
   if (!trainer) { alert("Trainer / verifier name is required."); return; }
   if (!date) { alert("Date is required."); return; }
-  let theBadge = null;
-  for (const r of state.curriculum.ranks) {
-    const b = r.badges.find(x => x.id === badgeId);
-    if (b) { theBadge = b; break; }
-  }
-  state.apprentice.earnedBadges[badgeId] = { trainer, date, notes };
-  saveState(); closeModal(); render();
-  celebrate(theBadge || { name: "Merit", id: badgeId }, trainer);
+  const payload = { trainer: trainer, trainerUid: me.uid, date: date, notes: notes, ts: Date.now() };
+  const upd = {}; upd["earnedBadges." + badgeId] = payload;
+  db.collection("users").doc(selectedAppId).update(upd)
+    .then(() => closeModal())
+    .catch(e => alert("Could not sign off: " + e.message));
 }
-
 function revokeBadge(badgeId) {
-  if (!confirm("Power down this merit? Sign-off info will be removed.")) return;
-  delete state.apprentice.earnedBadges[badgeId];
-  saveState(); closeModal(); render();
+  if (!selectedAppId) return;
+  if (!confirm("Power down this merit? The sign-off will be removed.")) return;
+  const upd = {}; upd["earnedBadges." + badgeId] = firebase.firestore.FieldValue.delete();
+  db.collection("users").doc(selectedAppId).update(upd)
+    .then(() => closeModal())
+    .catch(e => alert("Could not revoke: " + e.message));
 }
 
-/* ---------- Edit handlers ---------- */
+/* ---------- Curriculum editing (foreman/owner) ---------- */
+function saveCurriculum() {
+  return db.collection("config").doc("curriculum").set(curriculum).catch(e => alert("Could not save: " + e.message));
+}
+function toggleEdit() { editMode = !editMode; render(); }
 function saveBadgeEdits(rankId, badgeId) {
-  const rank = state.curriculum.ranks.find(r => r.id === rankId);
+  const rank = curriculum.ranks.find(r => r.id === rankId);
   const badge = rank.badges.find(b => b.id === badgeId);
-  badge.name = document.getElementById("bName").value.trim() || badge.name;
-  badge.desc = document.getElementById("bDesc").value.trim();
-  badge.reqs = document.getElementById("bReqs").value.split("\n").map(s => s.trim()).filter(Boolean);
-  saveState(); closeModal(); render();
+  badge.name = (document.getElementById("bName").value || "").trim() || badge.name;
+  badge.desc = (document.getElementById("bDesc").value || "").trim();
+  badge.reqs = (document.getElementById("bReqs").value || "").split("\n").map(s => s.trim()).filter(Boolean);
+  saveCurriculum().then(() => { closeModal(); });
 }
 function deleteBadge(rankId, badgeId) {
-  if (!confirm("Delete this merit? This cannot be undone.")) return;
-  const rank = state.curriculum.ranks.find(r => r.id === rankId);
+  if (!confirm("Delete this merit for everyone? This cannot be undone.")) return;
+  const rank = curriculum.ranks.find(r => r.id === rankId);
   rank.badges = rank.badges.filter(b => b.id !== badgeId);
-  delete state.apprentice.earnedBadges[badgeId];
-  saveState(); closeModal(); render();
+  saveCurriculum().then(() => { closeModal(); });
 }
 function addBadge(rankId) {
-  const rank = state.curriculum.ranks.find(r => r.id === rankId);
+  const rank = curriculum.ranks.find(r => r.id === rankId);
   const newId = "b-" + Math.random().toString(36).slice(2, 9);
   rank.badges.push({ id: newId, name: "New Merit", desc: "Describe what this merit covers.", reqs: ["First requirement"] });
-  saveState(); render(); openBadge(rankId, newId);
+  saveCurriculum().then(() => { openBadge(selectedAppData || profile, rankId, newId, isForeman()); });
 }
 function editRank(rankId) {
-  const rank = state.curriculum.ranks.find(r => r.id === rankId);
+  const rank = curriculum.ranks.find(r => r.id === rankId);
   const modal = document.getElementById("modal");
   modal.innerHTML = `
     <button class="modal-close" onclick="closeModal()">×</button>
-    <div class="modal-head">
-      <div class="eyebrow"><span>Rank</span><span class="sep">·</span><span class="sub">Edit</span></div>
-      <h3>Edit rank</h3>
-    </div>
+    <div class="modal-head"><div class="eyebrow"><span>Rank</span><span class="sep">·</span><span class="sub">Edit</span></div><h3>Edit rank</h3></div>
     <div class="modal-body">
-      <label>Name</label>
-      <input type="text" id="rName" value="${escapeAttr(rank.name)}" />
-      <label>Subtitle</label>
-      <input type="text" id="rSub" value="${escapeAttr(rank.subtitle || '')}" />
+      <label>Name</label><input type="text" id="rName" value="${escapeAttr(rank.name)}" />
+      <label>Subtitle</label><input type="text" id="rSub" value="${escapeAttr(rank.subtitle || '')}" />
     </div>
     <div class="modal-foot">
       <div><button class="danger" onclick="deleteRank('${rankId}')">Delete Rank</button></div>
-      <div class="right">
-        <button class="ghost" onclick="closeModal()">Cancel</button>
-        <button class="primary" onclick="saveRankEdits('${rankId}')">Save</button>
-      </div>
+      <div class="right"><button class="ghost" onclick="closeModal()">Cancel</button><button class="primary" onclick="saveRankEdits('${rankId}')">Save</button></div>
     </div>
   `;
   document.getElementById("modalBackdrop").classList.add("open");
 }
 function saveRankEdits(rankId) {
-  const rank = state.curriculum.ranks.find(r => r.id === rankId);
-  rank.name = document.getElementById("rName").value.trim() || rank.name;
-  rank.subtitle = document.getElementById("rSub").value.trim();
-  saveState(); closeModal(); render();
+  const rank = curriculum.ranks.find(r => r.id === rankId);
+  rank.name = (document.getElementById("rName").value || "").trim() || rank.name;
+  rank.subtitle = (document.getElementById("rSub").value || "").trim();
+  saveCurriculum().then(() => { closeModal(); });
 }
 function deleteRank(rankId) {
-  if (!confirm("Delete this rank and all its merits? This cannot be undone.")) return;
-  const rank = state.curriculum.ranks.find(r => r.id === rankId);
-  rank.badges.forEach(b => delete state.apprentice.earnedBadges[b.id]);
-  state.curriculum.ranks = state.curriculum.ranks.filter(r => r.id !== rankId);
-  saveState(); view = { name: "home" }; closeModal(); render();
+  if (!confirm("Delete this rank and all its merits for everyone?")) return;
+  curriculum.ranks = curriculum.ranks.filter(r => r.id !== rankId);
+  saveCurriculum().then(() => { closeModal(); view = { name: "home" }; render(); });
 }
 function addRank() {
   const newId = "rank-" + Math.random().toString(36).slice(2, 9);
-  state.curriculum.ranks.push({ id: newId, name: "New Rank", subtitle: "Describe this rank", badges: [] });
-  saveState(); render(); editRank(newId);
-}
-function editProfile() {
-  const a = state.apprentice;
-  const modal = document.getElementById("modal");
-  modal.innerHTML = `
-    <button class="modal-close" onclick="closeModal()">×</button>
-    <div class="modal-head">
-      <div class="eyebrow"><span>Profile</span><span class="sep">·</span><span class="sub">Edit</span></div>
-      <h3>Edit profile</h3>
-    </div>
-    <div class="modal-body">
-      <label>Apprentice Name</label>
-      <input type="text" id="pName" value="${escapeAttr(a.name)}" />
-      <label>Company</label>
-      <input type="text" id="pCo" value="${escapeAttr(a.company || '')}" />
-      <label>Start Date</label>
-      <input type="date" id="pStart" value="${escapeAttr(a.startDate || '')}" />
-    </div>
-    <div class="modal-foot">
-      <div></div>
-      <div class="right">
-        <button class="ghost" onclick="closeModal()">Cancel</button>
-        <button class="primary" onclick="saveProfileEdits()">Save</button>
-      </div>
-    </div>
-  `;
-  document.getElementById("modalBackdrop").classList.add("open");
-}
-function saveProfileEdits() {
-  state.apprentice.name = document.getElementById("pName").value.trim() || state.apprentice.name;
-  state.apprentice.company = document.getElementById("pCo").value.trim();
-  state.apprentice.startDate = document.getElementById("pStart").value;
-  saveState(); closeModal(); render();
+  curriculum.ranks.push({ id: newId, name: "New Rank", subtitle: "Describe this rank", badges: [] });
+  saveCurriculum().then(() => { editRank(newId); });
 }
 
-/* ---------- Toolbar ---------- */
-function toggleEdit() { editMode = !editMode; render(); }
-function doExport() {
-  if (!state) return;
-  const blob = new Blob([JSON.stringify(state, null, 2)], { type: "application/json" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  const safe = (state.apprentice.name || "apprentice").replace(/\s+/g, "-").toLowerCase();
-  a.href = url;
-  a.download = `homestead-training-${safe}-${new Date().toISOString().slice(0,10)}.json`;
-  a.click(); URL.revokeObjectURL(url);
+/* ---------- Owner: manage crew (roles) ---------- */
+function openAdmin() { view = { name: "admin" }; window.scrollTo(0, 0); render(); }
+function renderAdmin() {
+  // Pull everyone (owner can read all). Use a one-time query.
+  C().innerHTML = `
+    ${topBar()}
+    <button class="back-link" onclick="goHome()">Back</button>
+    <div class="eyebrow"><span>Owner</span><span class="sep">·</span><span class="sub">Manage Crew</span></div>
+    <h1 class="display">CREW ROLES<span class="punct">.</span></h1>
+    <p class="subhead">Promote trusted people to Foreman so they can sign off merits. Apprentices can never sign off their own work.</p>
+    <ul class="item-list" id="adminList"><li class="loading-wrap"><div class="spin"></div></li></ul>
+  `;
+  db.collection("users").get().then((snap) => {
+    const users = snap.docs.map(d => Object.assign({ id: d.id }, d.data()));
+    users.sort((a, b) => (a.role || "").localeCompare(b.role || "") || (a.name || "").localeCompare(b.name || ""));
+    const list = document.getElementById("adminList");
+    list.innerHTML = "";
+    users.forEach(u => {
+      const isOwnerRow = (u.email || "").toLowerCase() === OWNER_EMAIL;
+      const li = document.createElement("li");
+      li.className = "item";
+      li.style.cursor = "default";
+      li.innerHTML = `
+        <div class="body">
+          <div class="title">${escapeHtml(u.name || u.email)}<span class="role-tag ${u.role !== 'apprentice' ? 'foreman' : ''}">${escapeHtml(u.role || 'apprentice')}</span></div>
+          <div class="sub">${escapeHtml(u.email || "")}</div>
+        </div>
+        <div class="right" style="display:flex; gap:6px;"></div>
+      `;
+      const actions = li.querySelector(".right");
+      if (!isOwnerRow) {
+        if (u.role === "apprentice") {
+          const b = document.createElement("button");
+          b.textContent = "Make Foreman";
+          b.onclick = () => setRole(u.id, "foreman");
+          actions.appendChild(b);
+        } else {
+          const b = document.createElement("button");
+          b.className = "ghost"; b.textContent = "Make Apprentice";
+          b.onclick = () => setRole(u.id, "apprentice");
+          actions.appendChild(b);
+        }
+      } else {
+        actions.innerHTML = '<span class="role-tag foreman">You</span>';
+      }
+      list.appendChild(li);
+    });
+    if (!users.length) list.innerHTML = '<p class="subhead">No accounts yet.</p>';
+  }).catch(e => renderError(e.message));
 }
-function doReset() {
-  if (!confirm("Reset everything on this device? All progress and edits will be lost.")) return;
-  localStorage.removeItem(STORAGE_KEY); state = null; editMode = false; view = { name: "home" }; render();
+function setRole(uid, role) {
+  db.collection("users").doc(uid).update({ role: role })
+    .then(() => renderAdmin())
+    .catch(e => alert("Could not change role: " + e.message));
 }
-document.getElementById("importFile").addEventListener("change", (e) => {
-  const file = e.target.files[0]; if (!file) return;
-  const reader = new FileReader();
-  reader.onload = ev => {
-    try {
-      const data = JSON.parse(ev.target.result);
-      if (!data.apprentice || !data.curriculum) throw new Error("Invalid file");
-      if (!confirm("This will replace the current profile and curriculum on this device. Continue?")) return;
-      state = data; saveState(); view = { name: "home" }; render();
-    } catch (err) { alert("Could not import: " + err.message); }
-  };
-  reader.readAsText(file);
-});
-document.getElementById("modalBackdrop").addEventListener("click", (e) => { if (e.target.id === "modalBackdrop") closeModal(); });
+
+/* ---------- Navigation ---------- */
+function goHome() {
+  if (isForeman()) { selectedAppId = null; selectedAppData = null; if (unsubSelApp) { unsubSelApp(); unsubSelApp = null; } }
+  view = { name: "home" }; window.scrollTo(0, 0); render();
+}
+function backToRoster() {
+  selectedAppId = null; selectedAppData = null; if (unsubSelApp) { unsubSelApp(); unsubSelApp = null; }
+  view = { name: "home" }; window.scrollTo(0, 0); render();
+}
+function backToHome() { view = { name: "home" }; window.scrollTo(0, 0); render(); }
 
 /* ---------- Helpers ---------- */
+function computeCurrentRank(earnedMap) {
+  for (const rank of curriculum.ranks) {
+    const all = rank.badges.length > 0 && rank.badges.every(b => earnedMap[b.id]);
+    if (!all) return rank;
+  }
+  return curriculum.ranks[curriculum.ranks.length - 1] || { name: "—" };
+}
+function findBadge(badgeId) {
+  if (!curriculum) return null;
+  for (const r of curriculum.ranks) { const b = r.badges.find(x => x.id === badgeId); if (b) return b; }
+  return null;
+}
 function escapeHtml(s) {
-  return String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 function escapeAttr(s) { return escapeHtml(s); }
 function formatDate(d) {
@@ -1159,6 +1235,8 @@ function formatDate(d) {
   if (isNaN(dt)) return d;
   return dt.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
 }
+
+/* ---------- Celebration (apprentice device) ---------- */
 function celebrate(badge, trainer) {
   playZap();
   const cel = document.createElement("div");
@@ -1167,10 +1245,7 @@ function celebrate(badge, trainer) {
     <div class="flash"></div>
     <canvas class="spark-canvas"></canvas>
     <div class="cel-rings"><span></span><span></span><span></span></div>
-    <div class="cel-badge">
-      <div class="cel-hex-border"></div>
-      <div class="cel-hex-inner">${iconSvg(badge.id, "em-icon")}</div>
-    </div>
+    <div class="cel-badge"><div class="cel-hex-border"></div><div class="cel-hex-inner">${iconSvg(badge.id, "em-icon")}</div></div>
     <div class="cel-text">
       <div class="cel-eyebrow">Merit Unlocked</div>
       <div class="cel-name">${escapeHtml(badge.name)}</div>
@@ -1181,8 +1256,6 @@ function celebrate(badge, trainer) {
   runSparks(cel.querySelector(".spark-canvas"));
   setTimeout(() => cel.remove(), 3000);
 }
-
-/* Particle sparks on a canvas */
 function runSparks(canvas) {
   if (!canvas) return;
   const ctx = canvas.getContext("2d");
@@ -1194,13 +1267,7 @@ function runSparks(canvas) {
   for (let i = 0; i < 90; i++) {
     const a = Math.random() * Math.PI * 2;
     const sp = 4 + Math.random() * 11;
-    parts.push({
-      x: cx, y: cy,
-      vx: Math.cos(a) * sp, vy: Math.sin(a) * sp,
-      life: 1, decay: 0.012 + Math.random() * 0.02,
-      size: 1.5 + Math.random() * 2.5,
-      color: colors[(Math.random() * colors.length) | 0]
-    });
+    parts.push({ x: cx, y: cy, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 1, decay: 0.012 + Math.random() * 0.02, size: 1.5 + Math.random() * 2.5, color: colors[(Math.random() * colors.length) | 0] });
   }
   let frame = 0;
   function tick() {
@@ -1210,32 +1277,23 @@ function runSparks(canvas) {
     for (const p of parts) {
       if (p.life <= 0) continue;
       alive = true;
-      p.x += p.vx; p.y += p.vy;
-      p.vy += 0.12; p.vx *= 0.985; p.vy *= 0.985;
-      p.life -= p.decay;
-      ctx.globalAlpha = Math.max(p.life, 0);
-      ctx.fillStyle = p.color;
+      p.x += p.vx; p.y += p.vy; p.vy += 0.12; p.vx *= 0.985; p.vy *= 0.985; p.life -= p.decay;
+      ctx.globalAlpha = Math.max(p.life, 0); ctx.fillStyle = p.color;
       ctx.shadowBlur = 12; ctx.shadowColor = p.color;
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-      ctx.fill();
+      ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2); ctx.fill();
     }
     ctx.globalAlpha = 1; ctx.shadowBlur = 0;
     if (alive && frame < 200) requestAnimationFrame(tick);
   }
   tick();
 }
-
-/* Synthesized electric power-up sound (no external files) */
 function playZap() {
   try {
     const AC = window.AudioContext || window.webkitAudioContext;
     if (!AC) return;
     const ctx = new AC();
     const now = ctx.currentTime;
-    // Rising tone
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
+    const osc = ctx.createOscillator(); const gain = ctx.createGain();
     osc.type = "sawtooth";
     osc.frequency.setValueAtTime(180, now);
     osc.frequency.exponentialRampToValueAtTime(900, now + 0.18);
@@ -1243,30 +1301,29 @@ function playZap() {
     gain.gain.setValueAtTime(0.0001, now);
     gain.gain.exponentialRampToValueAtTime(0.18, now + 0.04);
     gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.5);
-    osc.connect(gain); gain.connect(ctx.destination);
-    osc.start(now); osc.stop(now + 0.5);
-    // Sparkle ping
-    const osc2 = ctx.createOscillator();
-    const gain2 = ctx.createGain();
+    osc.connect(gain); gain.connect(ctx.destination); osc.start(now); osc.stop(now + 0.5);
+    const osc2 = ctx.createOscillator(); const gain2 = ctx.createGain();
     osc2.type = "triangle";
     osc2.frequency.setValueAtTime(1400, now + 0.16);
     osc2.frequency.exponentialRampToValueAtTime(2600, now + 0.4);
     gain2.gain.setValueAtTime(0.0001, now + 0.16);
     gain2.gain.exponentialRampToValueAtTime(0.08, now + 0.2);
     gain2.gain.exponentialRampToValueAtTime(0.0001, now + 0.55);
-    osc2.connect(gain2); gain2.connect(ctx.destination);
-    osc2.start(now + 0.16); osc2.stop(now + 0.55);
+    osc2.connect(gain2); gain2.connect(ctx.destination); osc2.start(now + 0.16); osc2.stop(now + 0.55);
     setTimeout(() => ctx.close(), 700);
   } catch (e) {}
 }
 
-window.closeModal = closeModal; window.signOffBadge = signOffBadge; window.revokeBadge = revokeBadge;
+/* expose for inline handlers */
+window.goHome = goHome; window.backToRoster = backToRoster; window.backToHome = backToHome;
+window.toggleEdit = toggleEdit; window.doLogout = doLogout; window.openAdmin = openAdmin;
+window.closeModal = closeModal; window.signOff = signOff; window.revokeBadge = revokeBadge;
 window.saveBadgeEdits = saveBadgeEdits; window.deleteBadge = deleteBadge; window.addBadge = addBadge;
 window.editRank = editRank; window.saveRankEdits = saveRankEdits; window.deleteRank = deleteRank;
-window.addRank = addRank; window.editProfile = editProfile; window.saveProfileEdits = saveProfileEdits;
-window.goHome = goHome; window.toggleEdit = toggleEdit; window.doExport = doExport; window.doReset = doReset;
+window.addRank = addRank; window.setRole = setRole;
 
-render();
+/* Boot: show a loader until auth resolves */
+renderLoading("Connecting to the grid…");
 </script>
 </body>
 </html>
