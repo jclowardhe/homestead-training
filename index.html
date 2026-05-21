@@ -884,6 +884,7 @@ function topBar() {
       <span class="who">${escapeHtml(profile.name || me.email)}<span class="role-tag ${roleClass}">${roleLabel}</span></span>
       ${isForeman() ? `<button class="ghost" onclick="toggleEdit()">${editMode ? "Done Editing" : "Edit Curriculum"}</button>` : ""}
       ${isOwner() ? `<button class="ghost" onclick="openAdmin()">Manage Crew</button>` : ""}
+      ${isOwner() ? `<button class="ghost" onclick="testFX()">Test FX</button>` : ""}
       <button class="ghost" onclick="doLogout()">Log Out</button>
     </div>
   `;
@@ -1099,11 +1100,7 @@ function signOff(badgeId) {
   const payload = { trainer: trainer, trainerUid: me.uid, date: date, notes: notes, ts: Date.now() };
   const upd = {}; upd["earnedBadges." + badgeId] = payload;
   db.collection("users").doc(selectedAppId).update(upd)
-    .then(() => {
-      closeModal();
-      const b = findBadge(badgeId);
-      if (b) celebrate(b, trainer);  // play it for the foreman doing the sign-off too
-    })
+    .then(() => closeModal())
     .catch(e => alert("Could not sign off: " + e.message));
 }
 function revokeBadge(badgeId) {
@@ -1299,6 +1296,16 @@ function celebrate(badge, trainer) {
   setTimeout(() => cel.remove(), 5000);
 }
 
+/* Dev preview: fire the celebration on demand (owner only) */
+function testFX() {
+  let b = null;
+  if (curriculum && curriculum.ranks.length) {
+    const r = curriculum.ranks[Math.floor(Math.random() * curriculum.ranks.length)];
+    if (r.badges && r.badges.length) b = r.badges[Math.floor(Math.random() * r.badges.length)];
+  }
+  celebrate(b || { id: "b-markout", name: "Marking Out" }, (profile && profile.name) ? profile.name : "Test");
+}
+
 /* Smoke billowing up from the nostrils */
 function runSmoke(canvas, points, duration) {
   if (!canvas) return;
@@ -1412,7 +1419,7 @@ window.toggleEdit = toggleEdit; window.doLogout = doLogout; window.openAdmin = o
 window.closeModal = closeModal; window.signOff = signOff; window.revokeBadge = revokeBadge;
 window.saveBadgeEdits = saveBadgeEdits; window.deleteBadge = deleteBadge; window.addBadge = addBadge;
 window.editRank = editRank; window.saveRankEdits = saveRankEdits; window.deleteRank = deleteRank;
-window.addRank = addRank; window.setRole = setRole;
+window.addRank = addRank; window.setRole = setRole; window.testFX = testFX;
 
 /* Apply Homestead branding once the DOM is ready */
 (function setupBrand(){
