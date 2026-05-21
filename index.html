@@ -729,26 +729,32 @@ const DEFAULT_CURRICULUM = {
       { id: "b-piping", name: "Piping in Unframed Walls", desc: "Run conduit through framing and structure before walls are closed.", reqs: ["Lay out a clean run with minimum bends.","Bend EMT to fit a real-world path.","Support per code spacing and box offsets."]},
       { id: "b-lcp", name: "Lighting Control Panels", desc: "Install and terminate lighting control panels.", reqs: ["Identify line and load terminals.","Land and label each circuit cleanly.","Verify low-voltage control wiring per manufacturer."]}
     ]},
-    { id: "rank-finish", name: "Finish", subtitle: "Trim-out, devices, fixtures, and final programming", badges: [
+    { id: "rank-fin1", name: "Finish · Devices & Trim", subtitle: "Devices, plates, switches, and can trims", badges: [
       { id: "f-device", name: "Device Installation", desc: "Terminate and set receptacles and devices at trim.", reqs: ["Set devices plumb and flush in the box.","Verify polarity and grounding.","Confirm operation before plating."]},
       { id: "f-coverplate", name: "Cover Plate Installation", desc: "Install cover plates clean, level, and undamaged.", reqs: ["Select the correct plate type and color.","Set plates flush and level.","Avoid cracking or over-tightening."]},
       { id: "f-sw34", name: "Installing 3/4 Way Switches", desc: "Install and verify multi-location switches at trim.", reqs: ["Land travelers and commons correctly.","Verify operation from every location.","Set and plate cleanly."]},
-      { id: "f-cantrim", name: "Installing Can Trims", desc: "Install recessed can trims to match housings.", reqs: ["Match trim to housing type.","Seat trim springs/clips fully.","Aim and level adjustable trims."]},
+      { id: "f-cantrim", name: "Installing Can Trims", desc: "Install recessed can trims to match housings.", reqs: ["Match trim to housing type.","Seat trim springs/clips fully.","Aim and level adjustable trims."]}
+    ]},
+    { id: "rank-fin2", name: "Finish · Fixtures", subtitle: "Fixtures, fans, and decorative lighting", badges: [
       { id: "f-decofix", name: "Installing Decorative Fixtures", desc: "Mount and connect decorative light fixtures.", reqs: ["Support per fixture weight and box rating.","Make up connections and ground.","Level and align the fixture."]},
-      { id: "f-panelmu", name: "Panel Make Up", desc: "Make up and label a panel at finish.", reqs: ["Land and torque conductors to spec.","Balance circuits across phases.","Complete the directory legibly."]},
       { id: "f-tapelight", name: "Installing Tape Light", desc: "Install and connect LED tape lighting.", reqs: ["Cut tape at marked points and mount cleanly.","Wire drivers and verify voltage/polarity.","Confirm even output and dimming."]},
-      { id: "f-gen", name: "Generator Installation / Hook Up", desc: "Install and connect a residential generator.", reqs: ["Land generator, utility, and load conductors.","Verify transfer/interlock operation.","Test under load and label."]},
+      { id: "f-ceilingfan", name: "Installing Ceiling Fans", desc: "Install and balance ceiling fans.", reqs: ["Use a fan-rated box and support.","Wire the fan, light, and control.","Balance and verify no wobble."]},
+      { id: "f-chandelier", name: "Installing Chandeliers", desc: "Install heavy and decorative chandeliers.", reqs: ["Verify box and support rating for the weight.","Assemble and hang at the correct height.","Make up, ground, and level."]},
+      { id: "f-highbay", name: "Installing High Bay Fixtures", desc: "Install high bay fixtures safely at height.", reqs: ["Rig and support fixtures safely.","Make up connections and ground.","Aim and verify operation."]}
+    ]},
+    { id: "rank-fin3", name: "Finish · Exterior & Low-Voltage", subtitle: "Eaves, island, and data/coax", badges: [
+      { id: "f-eavecan", name: "Installing Eave Can Trims", desc: "Install exterior eave can trims.", reqs: ["Use exterior / wet-rated trims.","Seat and seal trims weather-tight.","Verify operation and aiming."]},
+      { id: "f-eaveoutlet", name: "Installing Eave Outlets", desc: "Install exterior eave outlets.", reqs: ["Use in-use weatherproof covers.","Verify GFCI protection.","Seal penetrations weather-tight."]},
+      { id: "f-island", name: "Installing Island Power / Devices", desc: "Install island receptacles and devices.", reqs: ["Install a code-compliant island receptacle.","Mount pop-up / below-counter device securely.","Verify GFCI and operation."]},
+      { id: "f-lowvolt", name: "Cat 6 / Coax Make Up", desc: "Terminate low-voltage data and coax.", reqs: ["Terminate Cat6 to the T568 standard.","Make up and test coax connectors.","Label and verify each drop."]}
+    ]},
+    { id: "rank-fin4", name: "Finish · Controls & Power", subtitle: "Programming, control panels, panel and generator", badges: [
       { id: "f-lutron", name: "Lutron Programming", desc: "Program Lutron lighting controls and keypads.", reqs: ["Associate keypads and dimmers.","Build scenes and set fade times.","Verify operation with the customer."]},
       { id: "f-legrand", name: "Legrand Programming", desc: "Program Legrand controls and devices.", reqs: ["Pair devices to the system.","Configure scenes and zones.","Verify all loads respond."]},
       { id: "f-control4", name: "Control 4 Programming", desc: "Program and integrate Control4 lighting.", reqs: ["Identify and bind lighting loads.","Build scenes and keypad buttons.","Verify operation across the home."]},
       { id: "f-lcpmu", name: "Lighting Control Panel Makeup", desc: "Make up a lighting control panel at finish.", reqs: ["Land and label line and load circuits.","Terminate low-voltage control wiring.","Verify each circuit and scene."]},
-      { id: "f-highbay", name: "Installing High Bay Fixtures", desc: "Install high bay fixtures safely at height.", reqs: ["Rig and support fixtures safely.","Make up connections and ground.","Aim and verify operation."]},
-      { id: "f-eavecan", name: "Installing Eave Can Trims", desc: "Install exterior eave can trims.", reqs: ["Use exterior / wet-rated trims.","Seat and seal trims weather-tight.","Verify operation and aiming."]},
-      { id: "f-eaveoutlet", name: "Installing Eave Outlets", desc: "Install exterior eave outlets.", reqs: ["Use in-use weatherproof covers.","Verify GFCI protection.","Seal penetrations weather-tight."]},
-      { id: "f-island", name: "Installing Island Power / Devices", desc: "Install island receptacles and devices.", reqs: ["Install a code-compliant island receptacle.","Mount pop-up / below-counter device securely.","Verify GFCI and operation."]},
-      { id: "f-lowvolt", name: "Cat 6 / Coax Make Up", desc: "Terminate low-voltage data and coax.", reqs: ["Terminate Cat6 to the T568 standard.","Make up and test coax connectors.","Label and verify each drop."]},
-      { id: "f-ceilingfan", name: "Installing Ceiling Fans", desc: "Install and balance ceiling fans.", reqs: ["Use a fan-rated box and support.","Wire the fan, light, and control.","Balance and verify no wobble."]},
-      { id: "f-chandelier", name: "Installing Chandeliers", desc: "Install heavy and decorative chandeliers.", reqs: ["Verify box and support rating for the weight.","Assemble and hang at the correct height.","Make up, ground, and level."]}
+      { id: "f-panelmu", name: "Panel Make Up", desc: "Make up and label a panel at finish.", reqs: ["Land and torque conductors to spec.","Balance circuits across phases.","Complete the directory legibly."]},
+      { id: "f-gen", name: "Generator Installation / Hook Up", desc: "Install and connect a residential generator.", reqs: ["Land generator, utility, and load conductors.","Verify transfer/interlock operation.","Test under load and label."]}
     ]}
   ]
 };
@@ -1173,44 +1179,43 @@ function cWrapLabel(name) {
 function buildConstellation(userData) {
   const earnedMap = userData.earnedBadges || {};
   const ranks = curriculum.ranks;
-  const W = 760, cx = 380, rowH = 104, branch = 176, topPad = 120, bottomPad = 56;
+  const W = 760, cx = 380, rowH = 104, branch = 176, topPad = 64, capPad = 120;
   const segTotal = ranks.reduce((s, r) => s + (r.badges.length + 1) * rowH, 0);
-  const H = topPad + segTotal + bottomPad;
+  const H = topPad + segTotal + capPad;
   let traces = "", nodes = "";
   const earnedYs = [];
-  let y = H - bottomPad;
+  let y = topPad;
   ranks.forEach((rank, i) => {
     const rankY = y;
     const inRank = rank.badges.filter(b => earnedMap[b.id]).length;
     const rankComplete = rank.badges.length > 0 && inRank === rank.badges.length;
+    nodes += rankStationSVG(cx, rankY, i + 1, rankComplete, rank.name);
     rank.badges.forEach((b, j) => {
-      const my = rankY - (j + 1) * rowH;
+      const my = rankY + (j + 1) * rowH;
       const side = (j % 2 === 0) ? -1 : 1;
       const mx = cx + side * branch;
       const earned = !!earnedMap[b.id];
       if (earned) earnedYs.push(my);
-      const tcol = earned ? "rgba(28,230,255,0.9)" : "rgba(28,230,255,0.16)";
-      traces += `<path d="M ${cx} ${my} C ${cx + side * 72} ${my} ${mx - side * 52} ${my} ${mx} ${my}" fill="none" stroke="${tcol}" stroke-width="${earned ? 2.5 : 1.4}"/>`;
+      const tcol = earned ? "rgba(28,230,255,0.95)" : "rgba(28,230,255,0.40)";
+      traces += `<path d="M ${cx} ${my} C ${cx + side * 72} ${my} ${mx - side * 52} ${my} ${mx} ${my}" fill="none" stroke="${tcol}" stroke-width="${earned ? 2.6 : 1.7}"/>`;
       nodes += meritNodeSVG(mx, my, b, earned, rank.id);
     });
-    nodes += rankStationSVG(cx, rankY, i + 1, rankComplete, rank.name);
-    y = rankY - (rank.badges.length + 1) * rowH;
+    y = rankY + (rank.badges.length + 1) * rowH;
   });
-  const capY = topPad - 34;
+  const capY = topPad + segTotal + 44;
   const allDone = ranks.length > 0 && ranks.every(r => r.badges.length > 0 && r.badges.every(b => earnedMap[b.id]));
-  const trunkBottom = H - bottomPad;
-  let trunk = `<line x1="${cx}" y1="${trunkBottom}" x2="${cx}" y2="${capY}" stroke="rgba(28,230,255,0.14)" stroke-width="3"/>`;
+  let trunk = `<line x1="${cx}" y1="${topPad}" x2="${cx}" y2="${capY}" stroke="rgba(28,230,255,0.32)" stroke-width="3"/>`;
   if (earnedYs.length) {
-    trunk += `<line x1="${cx}" y1="${trunkBottom}" x2="${cx}" y2="${Math.min.apply(null, earnedYs)}" stroke="rgba(28,230,255,0.85)" stroke-width="3"/>`;
+    trunk += `<line x1="${cx}" y1="${topPad}" x2="${cx}" y2="${Math.max.apply(null, earnedYs)}" stroke="rgba(28,230,255,0.9)" stroke-width="3"/>`;
   }
   return `<svg viewBox="0 0 ${W} ${H}" width="${W}" xmlns="http://www.w3.org/2000/svg">${trunk}${traces}${nodes}${capstoneSVG(cx, capY, allDone)}</svg>`;
 }
 function meritNodeSVG(x, y, badge, earned, rankId) {
-  const ring = earned ? "rgba(28,230,255,0.95)" : "rgba(28,230,255,0.32)";
-  const fill = earned ? "rgba(28,230,255,0.18)" : "rgba(10,18,30,0.85)";
-  const iconCol = earned ? "#8ff3ff" : "#5f8593";
+  const ring = earned ? "rgba(28,230,255,0.95)" : "rgba(28,230,255,0.6)";
+  const fill = earned ? "rgba(28,230,255,0.18)" : "rgba(14,26,40,0.92)";
+  const iconCol = earned ? "#8ff3ff" : "#a6cdd8";
   const inner = ICONS[badge.id] || ICON_FALLBACK;
-  const tcol = earned ? "#eafcff" : "#5f8593";
+  const tcol = earned ? "#eafcff" : "#b3d4de";
   let label = "";
   cWrapLabel(badge.name).forEach((ln, k) => {
     label += `<text x="${x}" y="${y + 42 + k * 14}" text-anchor="middle" font-family="Orbitron, sans-serif" font-size="10" letter-spacing="0.4" fill="${tcol}">${escapeHtml(ln.toUpperCase())}</text>`;
@@ -1230,20 +1235,20 @@ function rankStationSVG(x, y, num, complete, name) {
   return `<g>`
     + `<path d="${hex(x, y, 22)}" fill="rgba(8,14,22,0.95)" stroke="${stroke}" stroke-width="2.5"/>`
     + `<text x="${x}" y="${y + 6}" text-anchor="middle" font-family="Orbitron, sans-serif" font-weight="900" font-size="17" fill="${complete ? "#4dffb0" : "#8ff3ff"}">${num}</text>`
-    + `<text x="${x}" y="${y + 46}" text-anchor="middle" font-family="Orbitron, sans-serif" font-size="9" letter-spacing="1.5" fill="#5f8593">${escapeHtml(String(name || "").toUpperCase())}</text>`
+    + `<text x="${x}" y="${y + 46}" text-anchor="middle" font-family="Orbitron, sans-serif" font-size="9.5" letter-spacing="1.5" fill="#9ec6d2">${escapeHtml(String(name || "").toUpperCase())}</text>`
     + `</g>`;
 }
 function capstoneSVG(x, y, done) {
-  const stroke = done ? "rgba(255,174,40,0.95)" : "rgba(28,230,255,0.5)";
-  const fill = done ? "rgba(255,174,40,0.18)" : "rgba(10,18,30,0.9)";
-  const txt = done ? "#ffd27a" : "#5f8593";
+  const stroke = done ? "rgba(255,174,40,0.95)" : "rgba(28,230,255,0.72)";
+  const fill = done ? "rgba(255,174,40,0.18)" : "rgba(14,26,40,0.92)";
+  const txt = done ? "#ffd27a" : "#9ec6d2";
   let star = ""; const R = 26, r = 11;
   for (let k = 0; k < 10; k++) { const rad = (k % 2 === 0) ? R : r; const a = Math.PI / 180 * (36 * k - 90); star += (k ? "L" : "M") + (x + rad * Math.cos(a)).toFixed(1) + " " + (y + rad * Math.sin(a)).toFixed(1) + " "; }
   star += "Z";
   return `<g>`
     + (done ? `<circle cx="${x}" cy="${y}" r="42" fill="rgba(255,174,40,0.5)" opacity="0.5" style="filter:blur(9px)"/>` : "")
     + `<path d="${star}" fill="${fill}" stroke="${stroke}" stroke-width="2.5"/>`
-    + `<text x="${x}" y="${y - 46}" text-anchor="middle" font-family="Orbitron, sans-serif" font-weight="700" font-size="13" letter-spacing="2" fill="${txt}">JOURNEYMAN-READY</text>`
+    + `<text x="${x}" y="${y - 46}" text-anchor="middle" font-family="Orbitron, sans-serif" font-weight="700" font-size="13" letter-spacing="2" fill="${txt}">LEAD READY</text>`
     + `</g>`;
 }
 
@@ -1758,7 +1763,7 @@ function runSmoke(canvas, points, duration) {
   let spawning = true;
   function spawn() {
     for (const p of points) {
-      for (let i = 0; i < 2; i++) {
+      for (let i = 0; i < 1; i++) {
         parts.push({
           x: p.x + (Math.random() - 0.5) * 5,
           y: p.y,
@@ -1774,7 +1779,7 @@ function runSmoke(canvas, points, duration) {
   }
   function tick(now) {
     if (now - t0 > duration) spawning = false;
-    if (spawning && Math.random() < 0.55) spawn();
+    if (spawning && Math.random() < 0.6) spawn();
     ctx.clearRect(0, 0, W, H);
     let alive = false;
     for (const p of parts) {
