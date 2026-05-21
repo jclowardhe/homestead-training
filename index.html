@@ -437,17 +437,71 @@
   .signoff-form label { margin-top: 14px; }
   .signoff-form label:first-of-type { margin-top: 0; }
 
-  .award-burst { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; pointer-events: none; z-index: 200; }
-  .award-burst .badge-mark {
-    background: var(--bg-2); border: 1px solid var(--cyan);
-    padding: 34px 50px; text-align: center; transform: scale(0.6); opacity: 0;
-    animation: awardpop 1.6s cubic-bezier(.2,.7,.2,1) forwards;
-    box-shadow: 0 0 0 1px rgba(28,230,255,0.4), 0 0 80px -8px rgba(28,230,255,0.7);
-    clip-path: polygon(0 0, 100% 0, 100% calc(100% - 18px), calc(100% - 18px) 100%, 0 100%);
+  /* Emblem icons */
+  .emblem .em-icon { position: relative; z-index: 2; width: 40px; height: 40px; color: var(--muted); transition: color .2s, filter .2s; }
+  .emblem .em-chip {
+    position: absolute; top: -6px; left: -6px; z-index: 4;
+    font-family: 'Orbitron', sans-serif; font-size: 9px; font-weight: 700;
+    color: var(--muted); background: var(--bg-2); border: 1px solid var(--line-soft);
+    width: 22px; height: 22px; display: flex; align-items: center; justify-content: center;
+    clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
   }
-  .award-burst .badge-mark .eb { font-family: 'Orbitron'; font-size: 11px; letter-spacing: 4px; color: var(--cyan); text-transform: uppercase; margin-bottom: 8px; text-shadow: var(--glow-cyan); }
-  .award-burst .badge-mark .nm { font-family: 'Orbitron'; font-size: 26px; font-weight: 900; color: #eafcff; text-shadow: 0 0 16px rgba(28,230,255,0.6); }
-  @keyframes awardpop { 0%{transform:scale(0.6);opacity:0;} 18%{transform:scale(1.05);opacity:1;} 82%{transform:scale(1);opacity:1;} 100%{transform:scale(1.1);opacity:0;} }
+  .badge-tile.earned .em-icon { color: var(--cyan-soft); filter: drop-shadow(0 0 8px rgba(28,230,255,0.8)); }
+  .badge-tile.earned .em-chip { color: var(--cyan); border-color: var(--cyan); }
+  .badge-tile:hover .em-icon { color: var(--cyan); filter: drop-shadow(0 0 6px rgba(28,230,255,0.6)); }
+
+  /* Entrance + background motion */
+  @keyframes rise { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+  .rise { animation: rise .5s cubic-bezier(.2,.7,.2,1) backwards; }
+  @keyframes griddrift { from { background-position: center 0; } to { background-position: center 44px; } }
+  body { animation: griddrift 7s linear infinite; }
+  body::after {
+    content: ""; position: fixed; left: 0; right: 0; height: 200px; top: -200px;
+    background: linear-gradient(180deg, transparent, rgba(28,230,255,0.055), transparent);
+    pointer-events: none; z-index: 0; animation: scan 8s linear infinite;
+  }
+  @keyframes scan { 0% { transform: translateY(0); } 100% { transform: translateY(150vh); } }
+
+  /* ===== Big celebration ===== */
+  .celebration {
+    position: fixed; inset: 0; z-index: 300; pointer-events: none;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    background: radial-gradient(circle at 50% 44%, rgba(28,230,255,0.18), rgba(2,4,8,0) 55%);
+    animation: celIn .25s ease, celOut .55s ease 2.4s forwards;
+  }
+  @keyframes celIn { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes celOut { to { opacity: 0; } }
+  .celebration .flash { position: absolute; inset: 0; background: rgba(143,243,255,0.55); animation: flash .45s ease forwards; }
+  @keyframes flash { 0% { opacity: 0; } 10% { opacity: 0.85; } 100% { opacity: 0; } }
+  .spark-canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .cel-rings { position: absolute; top: 41%; left: 50%; }
+  .cel-rings span {
+    position: absolute; top: 0; left: 0; width: 130px; height: 130px; margin: -65px 0 0 -65px;
+    border: 2px solid var(--cyan); border-radius: 50%; opacity: 0; animation: ring 1.5s ease-out forwards;
+  }
+  .cel-rings span:nth-child(2) { animation-delay: .15s; border-color: var(--amber); }
+  .cel-rings span:nth-child(3) { animation-delay: .3s; }
+  @keyframes ring { 0% { transform: scale(0.2); opacity: 0.9; } 100% { transform: scale(3.6); opacity: 0; } }
+  .cel-badge {
+    position: relative; width: 150px; height: 150px; margin-bottom: 26px;
+    animation: badgeIn 1s cubic-bezier(.18,.9,.24,1.1) forwards; transform: scale(0) rotate(-40deg);
+  }
+  @keyframes badgeIn { 0% { transform: scale(0) rotate(-40deg); } 62% { transform: scale(1.14) rotate(5deg); } 100% { transform: scale(1) rotate(0); } }
+  .cel-badge .cel-hex-border {
+    position: absolute; inset: 0; clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+    background: var(--cyan); box-shadow: 0 0 44px rgba(28,230,255,0.9); animation: hexpulse 1.2s ease-in-out infinite;
+  }
+  @keyframes hexpulse { 0%,100% { filter: brightness(1); } 50% { filter: brightness(1.45); } }
+  .cel-badge .cel-hex-inner {
+    position: absolute; inset: 4px; clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+    background: radial-gradient(circle, #06303a, #04060c); display: flex; align-items: center; justify-content: center;
+  }
+  .cel-badge .em-icon { width: 64px; height: 64px; color: #eafcff; filter: drop-shadow(0 0 14px rgba(28,230,255,0.95)); }
+  .cel-text { text-align: center; animation: rise .6s ease .35s backwards; }
+  .cel-text .cel-eyebrow { font-family: 'Orbitron'; font-size: 13px; letter-spacing: 6px; color: var(--cyan); text-shadow: var(--glow-cyan); margin-bottom: 12px; }
+  .cel-text .cel-name { font-family: 'Orbitron'; font-size: 34px; font-weight: 900; color: #eafcff; text-shadow: 0 0 20px rgba(28,230,255,0.85); letter-spacing: 1px; }
+  .cel-text .cel-by { font-size: 15px; color: var(--muted); margin-top: 10px; letter-spacing: 1px; font-weight: 600; text-transform: uppercase; }
+  @media (max-width: 640px) { .cel-text .cel-name { font-size: 24px; } .cel-badge { width: 120px; height: 120px; } }
 
   .add-row {
     border: 1px dashed var(--line); padding: 14px; text-align: center; color: var(--muted);
@@ -645,6 +699,31 @@ const DEFAULT_CURRICULUM = {
   ]
 };
 
+/* ---------- Merit icons (custom line art per merit) ---------- */
+const ICONS = {
+  "b-markout":   '<circle cx="12" cy="12" r="3"/><path d="M12 2v5M12 17v5M2 12h5M17 12h5"/>',
+  "b-drill":     '<path d="M3 8h9v5H3z"/><path d="M12 9.2h4l4-2.2v6.4l-4-2.2h-4"/><path d="M6 13v4.5h3"/>',
+  "b-cans":      '<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/>',
+  "b-breakup":   '<path d="M4 12h6M10 12l5-5M10 12l5 5"/><circle cx="16" cy="7" r="2"/><circle cx="16" cy="17" r="2"/><circle cx="5" cy="12" r="1.5"/>',
+  "b-overhead":  '<circle cx="12" cy="12" r="2"/><path d="M12 10c0-4 1-6 4-6 0 3-1 5-4 6M12 14c0 4-1 6-4 6 0-3 1-5 4-6M10 12c-4 0-6-1-6-4 3 0 5 1 6 4M14 12c4 0 6 1 6 4-3 0-5-1-6-4"/>',
+  "b-pulltape":  '<circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2"/><path d="M2 12h3M19 12h3"/>',
+  "b-homerun":   '<rect x="14" y="5" width="7" height="14" rx="1"/><path d="M3 8h11M3 12h11M3 16h11"/>',
+  "b-ser":       '<path d="M4 7c4 5 12 5 16 0M4 17c4-5 12-5 16 0"/><path d="M4 12h16"/>',
+  "b-switchconst":'<rect x="7" y="3" width="10" height="18" rx="2"/><circle cx="12" cy="8" r="2.6"/>',
+  "b-34way":     '<rect x="3" y="4" width="7" height="16" rx="1.5"/><rect x="14" y="4" width="7" height="16" rx="1.5"/><circle cx="6.5" cy="9" r="1.6"/><circle cx="17.5" cy="15" r="1.6"/>',
+  "b-mupoutlets":'<rect x="5" y="3" width="14" height="18" rx="2"/><path d="M10 8v3.5M14 8v3.5"/><circle cx="12" cy="16" r="1.1"/>',
+  "b-mupswitches":'<rect x="6" y="3" width="12" height="18" rx="2"/><rect x="10.4" y="8" width="3.2" height="8" rx="1.2"/>',
+  "b-muppanel":  '<rect x="4" y="3" width="16" height="18" rx="1"/><path d="M12 3v18M7 7.5h3M14 7.5h3M7 12h3M14 12h3M7 16.5h3M14 16.5h3"/>',
+  "b-ats":       '<rect x="3" y="8" width="18" height="10" rx="1"/><path d="M7 8V6h10v2"/><path d="M12 10.5l-2 3h2.4l-1.8 3"/>',
+  "b-piping":    '<path d="M5 20V10a4 4 0 0 1 4-4h10"/><path d="M3 20h4M17 4v4"/>',
+  "b-lcp":       '<rect x="4" y="4" width="16" height="16" rx="1"/><circle cx="9" cy="9" r="1.4"/><circle cx="15" cy="9" r="1.4"/><circle cx="9" cy="15" r="1.4"/><circle cx="15" cy="15" r="1.4"/>'
+};
+const ICON_FALLBACK = '<path d="M14 2 L4 14 L11 14 L9 22 L20 10 L13 10 Z"/>';
+function iconSvg(id, cls) {
+  const inner = ICONS[id] || ICON_FALLBACK;
+  return '<svg class="' + (cls || "em-icon") + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">' + inner + '</svg>';
+}
+
 /* ---------- State ---------- */
 let state = loadState();
 let editMode = false;
@@ -774,7 +853,8 @@ function renderHome() {
     const isComplete = totalInRank > 0 && earnedInRank === totalInRank;
 
     const li = document.createElement("li");
-    li.className = "item" + (isComplete ? " complete-rank" : "");
+    li.className = "item rise" + (isComplete ? " complete-rank" : "");
+    li.style.animationDelay = (idx * 0.07) + "s";
     li.innerHTML = `
       <div class="num">${String(idx + 1).padStart(2, "0")}</div>
       <div class="body">
@@ -821,12 +901,14 @@ function renderRank(rankId) {
   rank.badges.forEach((badge, bidx) => {
     const earned = apprentice.earnedBadges[badge.id];
     const tile = document.createElement("div");
-    tile.className = "badge-tile" + (earned ? " earned" : "");
+    tile.className = "badge-tile rise" + (earned ? " earned" : "");
+    tile.style.animationDelay = (bidx * 0.06) + "s";
     tile.innerHTML = `
       <div class="emblem">
         <div class="hex-border"></div>
         <div class="hex-inner"></div>
-        <div class="em-num">${String(bidx + 1).padStart(2, "0")}</div>
+        <div class="em-chip">${String(bidx + 1).padStart(2, "0")}</div>
+        ${iconSvg(badge.id)}
       </div>
       <div class="badge-name">${escapeHtml(badge.name)}</div>
       <div class="badge-status">${earned ? "Earned · " + formatDate(earned.date) : (badge.reqs || []).length + " Reqs"}</div>
@@ -920,13 +1002,14 @@ function signOffBadge(badgeId) {
   const notes = document.getElementById("signoffNotes").value.trim();
   if (!trainer) { alert("Trainer / verifier name is required."); return; }
   if (!date) { alert("Date is required."); return; }
-  let badgeName = "Merit";
+  let theBadge = null;
   for (const r of state.curriculum.ranks) {
     const b = r.badges.find(x => x.id === badgeId);
-    if (b) { badgeName = b.name; break; }
+    if (b) { theBadge = b; break; }
   }
   state.apprentice.earnedBadges[badgeId] = { trainer, date, notes };
-  saveState(); closeModal(); render(); celebrate(badgeName);
+  saveState(); closeModal(); render();
+  celebrate(theBadge || { name: "Merit", id: badgeId }, trainer);
 }
 
 function revokeBadge(badgeId) {
@@ -1076,12 +1159,105 @@ function formatDate(d) {
   if (isNaN(dt)) return d;
   return dt.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
 }
-function celebrate(name) {
-  const burst = document.createElement("div");
-  burst.className = "award-burst";
-  burst.innerHTML = `<div class="badge-mark"><div class="eb">— Merit Online</div><div class="nm">${escapeHtml(name)}</div></div>`;
-  document.body.appendChild(burst);
-  setTimeout(() => burst.remove(), 1600);
+function celebrate(badge, trainer) {
+  playZap();
+  const cel = document.createElement("div");
+  cel.className = "celebration";
+  cel.innerHTML = `
+    <div class="flash"></div>
+    <canvas class="spark-canvas"></canvas>
+    <div class="cel-rings"><span></span><span></span><span></span></div>
+    <div class="cel-badge">
+      <div class="cel-hex-border"></div>
+      <div class="cel-hex-inner">${iconSvg(badge.id, "em-icon")}</div>
+    </div>
+    <div class="cel-text">
+      <div class="cel-eyebrow">Merit Unlocked</div>
+      <div class="cel-name">${escapeHtml(badge.name)}</div>
+      <div class="cel-by">${trainer ? "Signed by " + escapeHtml(trainer) : ""}</div>
+    </div>
+  `;
+  document.body.appendChild(cel);
+  runSparks(cel.querySelector(".spark-canvas"));
+  setTimeout(() => cel.remove(), 3000);
+}
+
+/* Particle sparks on a canvas */
+function runSparks(canvas) {
+  if (!canvas) return;
+  const ctx = canvas.getContext("2d");
+  const W = canvas.width = window.innerWidth;
+  const H = canvas.height = window.innerHeight;
+  const cx = W / 2, cy = H * 0.41;
+  const colors = ["#1ce6ff", "#8ff3ff", "#ffae28", "#ffffff"];
+  const parts = [];
+  for (let i = 0; i < 90; i++) {
+    const a = Math.random() * Math.PI * 2;
+    const sp = 4 + Math.random() * 11;
+    parts.push({
+      x: cx, y: cy,
+      vx: Math.cos(a) * sp, vy: Math.sin(a) * sp,
+      life: 1, decay: 0.012 + Math.random() * 0.02,
+      size: 1.5 + Math.random() * 2.5,
+      color: colors[(Math.random() * colors.length) | 0]
+    });
+  }
+  let frame = 0;
+  function tick() {
+    frame++;
+    ctx.clearRect(0, 0, W, H);
+    let alive = false;
+    for (const p of parts) {
+      if (p.life <= 0) continue;
+      alive = true;
+      p.x += p.vx; p.y += p.vy;
+      p.vy += 0.12; p.vx *= 0.985; p.vy *= 0.985;
+      p.life -= p.decay;
+      ctx.globalAlpha = Math.max(p.life, 0);
+      ctx.fillStyle = p.color;
+      ctx.shadowBlur = 12; ctx.shadowColor = p.color;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1; ctx.shadowBlur = 0;
+    if (alive && frame < 200) requestAnimationFrame(tick);
+  }
+  tick();
+}
+
+/* Synthesized electric power-up sound (no external files) */
+function playZap() {
+  try {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return;
+    const ctx = new AC();
+    const now = ctx.currentTime;
+    // Rising tone
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = "sawtooth";
+    osc.frequency.setValueAtTime(180, now);
+    osc.frequency.exponentialRampToValueAtTime(900, now + 0.18);
+    osc.frequency.exponentialRampToValueAtTime(420, now + 0.32);
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(0.18, now + 0.04);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.5);
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.start(now); osc.stop(now + 0.5);
+    // Sparkle ping
+    const osc2 = ctx.createOscillator();
+    const gain2 = ctx.createGain();
+    osc2.type = "triangle";
+    osc2.frequency.setValueAtTime(1400, now + 0.16);
+    osc2.frequency.exponentialRampToValueAtTime(2600, now + 0.4);
+    gain2.gain.setValueAtTime(0.0001, now + 0.16);
+    gain2.gain.exponentialRampToValueAtTime(0.08, now + 0.2);
+    gain2.gain.exponentialRampToValueAtTime(0.0001, now + 0.55);
+    osc2.connect(gain2); gain2.connect(ctx.destination);
+    osc2.start(now + 0.16); osc2.stop(now + 0.55);
+    setTimeout(() => ctx.close(), 700);
+  } catch (e) {}
 }
 
 window.closeModal = closeModal; window.signOffBadge = signOffBadge; window.revokeBadge = revokeBadge;
