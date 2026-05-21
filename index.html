@@ -377,6 +377,7 @@
     border: 1px solid var(--line); color: var(--cyan); margin-left: 6px;
   }
   .role-tag.foreman { color: var(--amber); border-color: rgba(255,174,40,0.5); }
+  .role-tag.lead { color: var(--green); border-color: rgba(77,255,176,0.5); }
   .avatar {
     width: 50px; height: 50px; flex-shrink: 0; display: flex; align-items: center; justify-content: center;
     font-family: 'Orbitron', sans-serif; font-weight: 900; font-size: 16px; color: #04060c;
@@ -705,25 +706,25 @@ function iconSvg(id, cls) {
 /* ---------- Default curriculum (seeded once by a foreman/owner) ---------- */
 const DEFAULT_CURRICULUM = {
   ranks: [
-    { id: "rank-1", name: "Layout & Rough-In", subtitle: "Read the plan, mark the walls, prep the framing", badges: [
+    { id: "rank-1", name: "Rough · Layout", subtitle: "Read the plan, mark the walls, prep the framing", badges: [
       { id: "b-markout", name: "Marking Out", desc: "Lay out box, fixture, and switch locations on a residential rough-in.", reqs: ["Mark switch boxes at the company-standard height.","Mark receptacle locations per plan and NEC spacing rules.","Mark and confirm can-light and fixture layout from the print."]},
       { id: "b-drill", name: "Drilling Holes", desc: "Bore studs, plates, and joists cleanly for cable and conduit runs.", reqs: ["Pick the correct bit size for the run.","Bore in line and centered, within allowed depth zones.","Avoid plumbing, HVAC, and structural conflicts."]},
       { id: "b-cans", name: "Can Layouts", desc: "Plan and lay out recessed can lighting for a room.", reqs: ["Calculate spacing for even illumination.","Stay clear of joists, ducts, and other obstructions.","Verify IC-rated vs. non-IC where required."]}
     ]},
-    { id: "rank-2", name: "Wire Pulls & Runs", subtitle: "Run the wire, land it cleanly, label everything", badges: [
+    { id: "rank-2", name: "Rough · Wire Pulls", subtitle: "Run the wire, land it cleanly, label everything", badges: [
       { id: "b-breakup", name: "Breaking Up Circuits", desc: "Split loads correctly across circuits during rough-in.", reqs: ["Identify dedicated circuit requirements (kitchen, bath, laundry, etc.).","Balance general lighting and receptacle load.","Stay within the company standard for device count per circuit."]},
       { id: "b-overhead", name: "Making Up Overhead", desc: "Make up overhead boxes — fans, fixtures, 4/0 pancakes, etc.", reqs: ["Properly support fan-rated boxes.","Make up neutrals and grounds correctly.","Stub conductors at the right length for trim."]},
       { id: "b-pulltape", name: "Pulling Wire / Tape Locates", desc: "Pull cable through framing and use tape locates to find runs in walls.", reqs: ["Pull NM cable smoothly without damaging the jacket.","Use a tone generator and locator to trace a run.","Document hidden cable paths for the trim crew."]},
       { id: "b-homerun", name: "Homeruns", desc: "Run homerun cables cleanly from boxes back to the panel.", reqs: ["Identify circuit count and size at the panel.","Route cleanly through framing without sharp bends.","Label each homerun at the panel for make-up."]},
       { id: "b-ser", name: "SER Runs", desc: "Install SER cable for sub-feeds and large service drops.", reqs: ["Strip and terminate aluminum safely (anti-oxidant where required).","Secure SER per code spacing and bend radius.","Bond and land conductors correctly in the load center."]}
     ]},
-    { id: "rank-3", name: "Switching & Trim", subtitle: "Devices, switching, and the make-up that customers see", badges: [
+    { id: "rank-3", name: "Rough · Switching", subtitle: "Devices, switching, and the make-up that customers see", badges: [
       { id: "b-switchconst", name: "Switches / Constant Power", desc: "Wire single-pole switches and constant-power feeds.", reqs: ["Identify switched-hot vs. constant-hot at the box.","Wire the switch leg correctly back to the fixture.","Properly ground the device in metal vs. plastic boxes."]},
       { id: "b-34way", name: "3 Ways / 4 Ways", desc: "Wire multi-location switching for lighting circuits.", reqs: ["Wire a 3-way with two travelers and a common.","Add a 4-way between two 3-ways.","Troubleshoot a miswired 3-way circuit."]},
       { id: "b-mupoutlets", name: "Making Up Outlets", desc: "Terminate residential receptacles cleanly at trim.", reqs: ["Make tight pigtails or correct side-wire connections.","Properly land hot, neutral, and ground.","Set device plumb and flush in the box."]},
       { id: "b-mupswitches", name: "Making Up Switches", desc: "Terminate switches and dimmers at trim.", reqs: ["Identify and land hot, switched-hot, travelers, and ground.","Bundle conductors neatly back into the box.","Verify operation before plating."]}
     ]},
-    { id: "rank-4", name: "Make-Up & Advanced", subtitle: "Panels, transfer switches, and the high-skill work", badges: [
+    { id: "rank-4", name: "Rough · Make-Up", subtitle: "Panels, transfer switches, and the high-skill work", badges: [
       { id: "b-muppanel", name: "Making Up Panels", desc: "Land and label conductors in a residential load center.", reqs: ["Strip and torque conductors to manufacturer spec.","Bond neutral and ground correctly at main vs. sub-panel.","Fill out the panel directory legibly and accurately."]},
       { id: "b-ats", name: "Wiring ATS / Generators", desc: "Install transfer switches and generator interconnects.", reqs: ["Identify and install the correct transfer switch type (ATS, MTS, interlock).","Land utility, generator, and load conductors correctly.","Verify mechanical interlock, labeling, and operation."]},
       { id: "b-piping", name: "Piping in Unframed Walls", desc: "Run conduit through framing and structure before walls are closed.", reqs: ["Lay out a clean run with minimum bends.","Bend EMT to fit a real-world path.","Support per code spacing and box offsets."]},
@@ -780,6 +781,8 @@ let prevEarnedIds = null; // apprentice self celebration tracking
 const C = () => document.getElementById("container");
 function isForeman() { return profile && (profile.role === "foreman" || profile.role === "owner"); }
 function isOwner() { return !!me && me.email && me.email.toLowerCase() === OWNER_EMAIL; }
+function isLead() { return profile && profile.role === "lead"; }
+let leadCrewMode = false;
 
 /* ---------- Auth lifecycle ---------- */
 auth.onAuthStateChanged((user) => {
@@ -797,14 +800,14 @@ function cleanup() {
   curriculumSubbed = rosterSubbed = false;
   profile = null; curriculum = null; apprentices = [];
   selectedAppId = null; selectedAppData = null; prevEarnedIds = null;
-  view = { name: "home" }; editMode = false;
+  view = { name: "home" }; editMode = false; leadCrewMode = false;
 }
 
 function subscribeProfile(uid) {
   unsubProfile = db.collection("users").doc(uid).onSnapshot((snap) => {
     if (!snap.exists) { renderLoading("Setting up your account…"); return; }
     profile = snap.data();
-    if (profile.role === "apprentice") {
+    if (profile.role === "apprentice" || profile.role === "lead") {
       const ids = Object.keys(profile.earnedBadges || {});
       if (prevEarnedIds !== null) {
         const fresh = ids.filter(x => !prevEarnedIds.includes(x));
@@ -818,7 +821,7 @@ function subscribeProfile(uid) {
       prevEarnedIds = ids;
     }
     subscribeCurriculum();
-    if (isForeman()) subscribeRoster();
+    if (isForeman() || isLead()) subscribeRoster();
     render();
   }, (err) => { renderError(err.message); });
 }
@@ -841,7 +844,7 @@ function subscribeCurriculum() {
 
 function subscribeRoster() {
   if (rosterSubbed) return; rosterSubbed = true;
-  unsubRoster = db.collection("users").where("role", "==", "apprentice").onSnapshot((snap) => {
+  unsubRoster = db.collection("users").where("role", "in", ["apprentice", "lead"]).onSnapshot((snap) => {
     apprentices = snap.docs.map(d => Object.assign({ id: d.id }, d.data()));
     apprentices.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
     render();
@@ -892,16 +895,17 @@ function render() {
     renderLoading(isForeman() ? "Setting up the curriculum…" : "Waiting for your foreman to set up the curriculum…");
     return;
   }
-  if (isForeman()) {
-    if (view.name === "admin") return renderAdmin();
-    if (view.name === "digest") return renderDigest();
+  if (view.name === "admin" && isForeman()) return renderAdmin();
+  if (view.name === "digest" && isForeman()) return renderDigest();
+  const crewMode = isForeman() || (isLead() && leadCrewMode);
+  if (crewMode) {
     if (selectedAppId && selectedAppData) {
       if (view.name === "rank") return renderRankView(selectedAppData, view.rankId, true);
       return renderProgressHome(selectedAppData, true);
     }
     return renderRoster();
   }
-  // apprentice
+  // own progress (apprentice or a lead viewing their own trail)
   if (view.name === "rank") return renderRankView(profile, view.rankId, false);
   return renderProgressHome(profile, false);
 }
@@ -967,14 +971,15 @@ function renderAuth() {
 
 /* ---------- Top bar (logged in) ---------- */
 function topBar() {
-  const roleLabel = isOwner() ? "Owner" : (profile.role === "foreman" ? "Foreman" : "Apprentice");
-  const roleClass = isForeman() ? "foreman" : "";
+  const roleLabel = isOwner() ? "Owner" : (profile.role === "foreman" ? "Foreman" : (profile.role === "lead" ? "Lead" : "Apprentice"));
+  const roleClass = isForeman() ? "foreman" : (isLead() ? "lead" : "");
   return `
     <div class="toolbar">
       <span class="who">${escapeHtml(profile.name || me.email)}<span class="role-tag ${roleClass}">${roleLabel}</span></span>
+      ${isLead() ? `<button class="ghost" onclick="toggleLeadCrew()">${leadCrewMode ? "My Progress" : "Pass Off Crew"}</button>` : ""}
       ${isForeman() ? `<button class="ghost" onclick="openDigest()">This Week</button>` : ""}
       ${isForeman() ? `<button class="ghost" onclick="toggleEdit()">${editMode ? "Done Editing" : "Edit Curriculum"}</button>` : ""}
-      ${isOwner() ? `<button class="ghost" onclick="openAdmin()">Manage Crew</button>` : ""}
+      ${isForeman() ? `<button class="ghost" onclick="openAdmin()">Manage Crew</button>` : ""}
       ${isOwner() ? `<button class="ghost" onclick="testFX()">Test FX</button>` : ""}
       <button class="ghost" onclick="doLogout()">Log Out</button>
     </div>
@@ -984,20 +989,19 @@ function topBar() {
 /* ---------- Foreman roster ---------- */
 function renderRoster() {
   const total = curriculum.ranks.reduce((s, r) => s + r.badges.length, 0);
-  const showMine = rosterFilter === "mine";
-  const shown = showMine ? apprentices.filter(a => a.mentorUid === me.uid) : apprentices;
+  const foreman = isForeman();
+  const showMine = foreman && rosterFilter === "mine";
+  let shown = apprentices.filter(a => a.id !== me.uid);
+  if (showMine) shown = shown.filter(a => a.mentorUid === me.uid);
   C().innerHTML = `
     ${topBar()}
-    ${editMode ? '<div class="edit-banner">Edit mode — open an apprentice, then click ranks or merits to modify the shared curriculum.</div>' : ''}
-    <div class="eyebrow"><span>Foreman</span><span class="sep">·</span><span class="sub">${escapeHtml(profile.company || "Crew")}</span></div>
+    ${editMode ? '<div class="edit-banner">Edit mode — open someone, then click ranks or merits to modify the shared curriculum.</div>' : ''}
+    <div class="eyebrow"><span>${foreman ? "Foreman" : "Lead"}</span><span class="sep">·</span><span class="sub">${escapeHtml(profile.company || "Crew")}</span></div>
     <h1 class="display-name">THE CREW<span class="punct">.</span></h1>
-    <p class="subhead" style="margin-top:8px">Pick an apprentice to view their progress and sign off merits.</p>
+    <p class="subhead" style="margin-top:8px">${foreman ? "Pick someone to view their progress and sign off merits." : "Pick someone to pass them off on merits you've earned."}</p>
     <div class="section-head">
-      <h2>Apprentices</h2>
-      <span class="view-toggle">
-        <button class="${showMine ? "active" : ""}" onclick="setRosterFilter('mine')">My Crew</button>
-        <button class="${!showMine ? "active" : ""}" onclick="setRosterFilter('all')">All</button>
-      </span>
+      <h2>Crew</h2>
+      ${foreman ? `<span class="view-toggle"><button class="${showMine ? "active" : ""}" onclick="setRosterFilter('mine')">My Crew</button><button class="${!showMine ? "active" : ""}" onclick="setRosterFilter('all')">All</button></span>` : ""}
     </div>
     <ul class="item-list" id="rosterList"></ul>
   `;
@@ -1364,7 +1368,7 @@ function openBadge(userData, rankId, badgeId, foremanView) {
   const badge = rank.badges.find(b => b.id === badgeId);
   const earned = (userData.earnedBadges || {})[badgeId];
   const today = new Date().toISOString().slice(0, 10);
-  const canSignOff = foremanView && isForeman();
+  const canSignOff = foremanView && (isForeman() || (isLead() && selectedAppId !== me.uid && !!(profile.earnedBadges || {})[badgeId]));
   if (earned) window.__win = { name: badge.name, date: earned.date, user: userData.name || "" };
 
   const modal = document.getElementById("modal");
@@ -1405,12 +1409,12 @@ function openBadge(userData, rankId, badgeId, foremanView) {
             <textarea id="signoffNotes" placeholder="Verified on the Anderson job"></textarea>
           </div>
         </div>
-      ` : `<p class="locked-note">Only a foreman can sign off this merit. Show your work to your foreman to get it lit up.</p>`))}
+      ` : `<p class="locked-note">${(foremanView && isLead()) ? "You can pass this off once you've earned it yourself." : "A foreman — or a lead who holds this merit — signs it off. Show your work to get it lit up."}</p>`))}
     </div>
     <div class="modal-foot">
       <div>
         ${editMode ? '<button class="danger" onclick="deleteBadge(\'' + rankId + '\',\'' + badgeId + '\')">Delete</button>'
-          : (earned && canSignOff ? '<button class="danger" onclick="revokeBadge(\'' + badgeId + '\')">Revoke</button>' : "")}
+          : (earned && isForeman() && foremanView ? '<button class="danger" onclick="revokeBadge(\'' + badgeId + '\')">Revoke</button>' : "")}
       </div>
       <div class="right">
         ${(!editMode && earned) ? '<button onclick="shareWin()">Share Win</button>' : ""}
@@ -1556,9 +1560,9 @@ function renderAdmin() {
   C().innerHTML = `
     ${topBar()}
     <button class="back-link" onclick="goHome()">Back</button>
-    <div class="eyebrow"><span>Owner</span><span class="sep">·</span><span class="sub">Manage Crew</span></div>
+    <div class="eyebrow"><span>Crew</span><span class="sep">·</span><span class="sub">Roles</span></div>
     <h1 class="display">CREW ROLES<span class="punct">.</span></h1>
-    <p class="subhead">Promote trusted people to Foreman so they can sign off merits. Apprentices can never sign off their own work.</p>
+    <p class="subhead">Promote a trusted apprentice to <strong>Lead</strong> — Leads can pass others off on merits they've personally earned.${isOwner() ? " Owners can also make Foremen, who can sign off anything." : ""} Nobody can sign off their own work.</p>
     <ul class="item-list" id="adminList"><li class="loading-wrap"><div class="spin"></div></li></ul>
   `;
   db.collection("users").get().then((snap) => {
@@ -1571,28 +1575,30 @@ function renderAdmin() {
       const li = document.createElement("li");
       li.className = "item";
       li.style.cursor = "default";
+      const rtClass = u.role === "foreman" ? "foreman" : (u.role === "lead" ? "lead" : "");
       li.innerHTML = `
         <div class="body">
-          <div class="title">${escapeHtml(u.name || u.email)}<span class="role-tag ${u.role !== 'apprentice' ? 'foreman' : ''}">${escapeHtml(u.role || 'apprentice')}</span></div>
+          <div class="title">${escapeHtml(u.name || u.email)}<span class="role-tag ${rtClass}">${escapeHtml(u.role || 'apprentice')}</span></div>
           <div class="sub">${escapeHtml(u.email || "")}</div>
         </div>
         <div class="right" style="display:flex; gap:6px;"></div>
       `;
       const actions = li.querySelector(".right");
-      if (!isOwnerRow) {
-        if (u.role === "apprentice") {
-          const b = document.createElement("button");
-          b.textContent = "Make Foreman";
-          b.onclick = () => setRole(u.id, "foreman");
-          actions.appendChild(b);
-        } else {
-          const b = document.createElement("button");
-          b.className = "ghost"; b.textContent = "Make Apprentice";
-          b.onclick = () => setRole(u.id, "apprentice");
-          actions.appendChild(b);
-        }
-      } else {
+      function addBtn(label, target, ghost) {
+        const b = document.createElement("button");
+        if (ghost) b.className = "ghost";
+        b.textContent = label;
+        b.onclick = () => setRole(u.id, target);
+        actions.appendChild(b);
+      }
+      if (isOwnerRow) {
         actions.innerHTML = '<span class="role-tag foreman">You</span>';
+      } else {
+        const role = u.role || "apprentice";
+        const owner = isOwner();
+        if (role === "apprentice") { addBtn("Make Lead", "lead", true); if (owner) addBtn("Make Foreman", "foreman", false); }
+        else if (role === "lead") { addBtn("Make Apprentice", "apprentice", true); if (owner) addBtn("Make Foreman", "foreman", false); }
+        else if (role === "foreman") { if (owner) addBtn("Make Apprentice", "apprentice", true); else actions.innerHTML = '<span class="role-tag foreman">Foreman</span>'; }
       }
       list.appendChild(li);
     });
@@ -1607,7 +1613,13 @@ function setRole(uid, role) {
 
 /* ---------- Navigation ---------- */
 function goHome() {
-  if (isForeman()) { selectedAppId = null; selectedAppData = null; if (unsubSelApp) { unsubSelApp(); unsubSelApp = null; } }
+  selectedAppId = null; selectedAppData = null; if (unsubSelApp) { unsubSelApp(); unsubSelApp = null; }
+  bulkMode = false; bulkSel = {}; leadCrewMode = false;
+  view = { name: "home" }; window.scrollTo(0, 0); render();
+}
+function toggleLeadCrew() {
+  leadCrewMode = !leadCrewMode;
+  selectedAppId = null; selectedAppData = null; if (unsubSelApp) { unsubSelApp(); unsubSelApp = null; }
   bulkMode = false; bulkSel = {};
   view = { name: "home" }; window.scrollTo(0, 0); render();
 }
@@ -1868,7 +1880,7 @@ window.editRank = editRank; window.saveRankEdits = saveRankEdits; window.deleteR
 window.addRank = addRank; window.setRole = setRole; window.testFX = testFX; window.setProgressView = setProgressView; window.shareWin = shareWin;
 window.setRosterFilter = setRosterFilter; window.assignMentorSelf = assignMentorSelf; window.unassignMentor = unassignMentor; window.postFeedback = postFeedback;
 window.toggleBulk = toggleBulk; window.toggleBulkSel = toggleBulkSel; window.openBulkSignoff = openBulkSignoff; window.bulkSignOff = bulkSignOff;
-window.openDigest = openDigest;
+window.openDigest = openDigest; window.toggleLeadCrew = toggleLeadCrew;
 
 /* Apply Homestead branding once the DOM is ready */
 (function setupBrand(){
