@@ -495,7 +495,7 @@
     position: fixed; inset: 0; z-index: 300; pointer-events: none;
     display: flex; flex-direction: column; align-items: center; justify-content: center;
     background: radial-gradient(circle at 50% 44%, rgba(28,230,255,0.18), rgba(2,4,8,0) 55%);
-    animation: celIn .25s ease, celOut .6s ease 3.1s forwards;
+    animation: celIn .25s ease, celOut .7s ease 4.3s forwards;
   }
   @keyframes celIn { from { opacity: 0; } to { opacity: 1; } }
   @keyframes celOut { to { opacity: 0; } }
@@ -525,14 +525,14 @@
     background: radial-gradient(circle, #06303a, #04060c); display: flex; align-items: center; justify-content: center;
   }
   .cel-badge .em-icon { width: 64px; height: 64px; color: #eafcff; filter: drop-shadow(0 0 14px rgba(28,230,255,0.95)); }
-  .cel-text { text-align: center; animation: rise .6s ease .35s backwards; }
+  .cel-text { text-align: center; position: relative; z-index: 5; animation: rise .6s ease .35s backwards; }
   .cel-text .cel-eyebrow { font-family: 'Orbitron'; font-size: 13px; letter-spacing: 6px; color: var(--cyan); text-shadow: var(--glow-cyan); margin-bottom: 12px; }
   .cel-text .cel-name { font-family: 'Orbitron'; font-size: 34px; font-weight: 900; color: #eafcff; text-shadow: 0 0 20px rgba(28,230,255,0.85); letter-spacing: 1px; }
   .cel-text .cel-by { font-size: 15px; color: var(--muted); margin-top: 10px; letter-spacing: 1px; font-weight: 600; text-transform: uppercase; }
   @media (max-width: 640px) { .cel-text .cel-name { font-size: 24px; } .cel-badge { width: 120px; height: 120px; } }
 
   /* ===== Homestead longhorn branding ===== */
-  .brand-logo { height: 48px; width: auto; display: block; filter: drop-shadow(0 0 7px rgba(28,230,255,0.75)); }
+  .brand-logo { height: 74px; width: auto; display: block; filter: drop-shadow(0 0 8px rgba(28,230,255,0.75)); }
   .brand-mark .brand-sub { margin-top: 5px; }
   .logo-watermark {
     position: fixed; inset: 0; background-repeat: no-repeat;
@@ -556,7 +556,7 @@
   }
   @keyframes lhIn { 0%{transform:scale(0) rotate(-8deg);} 60%{transform:scale(1.07) rotate(2deg);} 100%{transform:scale(1) rotate(0);} }
   @keyframes lhSnort { 0%,100%{transform:translateY(0);} 35%{transform:translateY(6px);} 70%{transform:translateY(-2px);} }
-  @media (max-width: 640px){ .cel-longhorn{ width: 270px; } .auth-logo{ width: 260px; } .brand-logo{ height: 40px; } }
+  @media (max-width: 640px){ .cel-longhorn{ width: 270px; } .auth-logo{ width: 260px; } .brand-logo{ height: 54px; } }
 
   .add-row {
     border: 1px dashed var(--line); padding: 14px; text-align: center; color: var(--muted);
@@ -1099,7 +1099,11 @@ function signOff(badgeId) {
   const payload = { trainer: trainer, trainerUid: me.uid, date: date, notes: notes, ts: Date.now() };
   const upd = {}; upd["earnedBadges." + badgeId] = payload;
   db.collection("users").doc(selectedAppId).update(upd)
-    .then(() => closeModal())
+    .then(() => {
+      closeModal();
+      const b = findBadge(badgeId);
+      if (b) celebrate(b, trainer);  // play it for the foreman doing the sign-off too
+    })
     .catch(e => alert("Could not sign off: " + e.message));
 }
 function revokeBadge(badgeId) {
@@ -1289,10 +1293,10 @@ function celebrate(badge, trainer) {
       { x: r.left + r.width * 0.487, y: r.top + r.height * 0.93 },
       { x: r.left + r.width * 0.513, y: r.top + r.height * 0.93 }
     ];
-    runSmoke(cel.querySelector(".smoke-canvas"), pts, 2300);
+    runSmoke(cel.querySelector(".smoke-canvas"), pts, 3700);
   };
-  setTimeout(startSmoke, 650);
-  setTimeout(() => cel.remove(), 3700);
+  setTimeout(startSmoke, 600);
+  setTimeout(() => cel.remove(), 5000);
 }
 
 /* Smoke billowing up from the nostrils */
@@ -1306,16 +1310,16 @@ function runSmoke(canvas, points, duration) {
   let spawning = true;
   function spawn() {
     for (const p of points) {
-      for (let i = 0; i < 2; i++) {
+      for (let i = 0; i < 5; i++) {
         parts.push({
-          x: p.x + (Math.random() - 0.5) * 6,
+          x: p.x + (Math.random() - 0.5) * 9,
           y: p.y,
-          vx: (Math.random() - 0.5) * 0.6,
-          vy: -(0.7 + Math.random() * 1.0),
+          vx: (Math.random() - 0.5) * 0.9,
+          vy: (1.3 + Math.random() * 1.8),
           life: 1,
-          decay: 0.006 + Math.random() * 0.006,
-          size: 5 + Math.random() * 7,
-          grow: 0.3 + Math.random() * 0.35
+          decay: 0.0032 + Math.random() * 0.0036,
+          size: 8 + Math.random() * 11,
+          grow: 0.5 + Math.random() * 0.55
         });
       }
     }
@@ -1328,12 +1332,14 @@ function runSmoke(canvas, points, duration) {
     for (const p of parts) {
       if (p.life <= 0) continue;
       alive = true;
-      p.x += p.vx; p.y += p.vy; p.vy *= 0.99; p.vx += (Math.random() - 0.5) * 0.05;
-      p.size += p.grow; p.life -= p.decay;
-      const a = Math.max(p.life, 0) * 0.30;
+      p.x += p.vx; p.y += p.vy; p.vy *= 0.992; p.vx += (Math.random() - 0.5) * 0.09;
+      if (p.size < 95) p.size += p.grow;
+      p.life -= p.decay;
+      const a = Math.max(p.life, 0) * 0.46;
       const g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.size);
-      g.addColorStop(0, "rgba(190,235,245," + a + ")");
-      g.addColorStop(1, "rgba(150,185,205,0)");
+      g.addColorStop(0, "rgba(200,238,248," + a + ")");
+      g.addColorStop(0.5, "rgba(150,200,215," + (a * 0.6) + ")");
+      g.addColorStop(1, "rgba(120,160,185,0)");
       ctx.fillStyle = g;
       ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2); ctx.fill();
     }
