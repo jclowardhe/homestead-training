@@ -1,0 +1,1446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Homestead Electric — Training</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #faf8f4;
+    --ink: #1a1a1a;
+    --ink-soft: #2a2a2a;
+    --muted: #6b6b6b;
+    --line: #e5e0d6;
+    --line-soft: #efebe1;
+    --gold: #c89b3c;
+    --burgundy: #7a2d2d;
+    --forest: #2f4a36;
+    --slate: #34495e;
+    --copper: #a35a2c;
+    --good: #2f6b3d;
+    --bg-alt: #f3efe5;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    line-height: 1.5;
+  }
+  body {
+    position: relative;
+    min-height: 100vh;
+  }
+  /* Watermark — faint lightning bolt centered behind content */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'><path d='M118 18 L52 112 L96 112 L82 196 L150 86 L102 86 Z' fill='none' stroke='%231a1a1a' stroke-width='1.5' stroke-linejoin='round'/></svg>");
+    background-repeat: no-repeat;
+    background-position: center 58%;
+    background-size: 420px;
+    opacity: 0.04;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* Header (brand bar) */
+  header.brand-bar {
+    text-align: center;
+    padding: 28px 20px 18px;
+    border-bottom: 1px solid var(--ink);
+    position: relative;
+    z-index: 1;
+    background: var(--paper);
+  }
+  .brand-mark {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    text-decoration: none;
+    color: var(--ink);
+    cursor: pointer;
+  }
+  .brand-mark .bolt {
+    width: 38px; height: 38px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .brand-mark .bolt svg { width: 100%; height: 100%; }
+  .brand-mark .brand-name {
+    font-family: 'Playfair Display', Georgia, serif;
+    font-weight: 900;
+    font-size: 17px;
+    letter-spacing: 2.5px;
+    line-height: 1;
+  }
+  .brand-mark .brand-sub {
+    font-family: 'Inter', sans-serif;
+    font-size: 9px;
+    letter-spacing: 3px;
+    color: var(--muted);
+    text-transform: uppercase;
+  }
+
+  /* Layout container */
+  .container {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 40px 24px 80px;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* Eyebrow */
+  .eyebrow {
+    font-size: 11px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--ink);
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 18px;
+    font-weight: 500;
+  }
+  .eyebrow::before {
+    content: "";
+    display: inline-block;
+    width: 28px;
+    height: 1px;
+    background: var(--ink);
+  }
+  .eyebrow .sep { color: var(--muted); }
+  .eyebrow .sub { color: var(--muted); font-weight: 400; }
+
+  /* Big display title */
+  h1.display {
+    font-family: 'Playfair Display', Georgia, serif;
+    font-weight: 700;
+    font-size: 54px;
+    line-height: 1.05;
+    letter-spacing: -0.5px;
+    margin: 0 0 6px;
+    color: var(--ink);
+  }
+  h1.display .punct { color: var(--gold); }
+  .subhead {
+    font-size: 14px;
+    color: var(--muted);
+    margin-bottom: 36px;
+    max-width: 560px;
+  }
+
+  /* Stats row */
+  .stats-row {
+    display: flex;
+    gap: 0;
+    border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+    margin-bottom: 36px;
+    background: rgba(255,255,255,0.4);
+  }
+  .stat {
+    flex: 1;
+    padding: 14px 18px;
+    border-right: 1px solid var(--line);
+  }
+  .stat:last-child { border-right: none; }
+  .stat .stat-lbl {
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 4px;
+  }
+  .stat .stat-val {
+    font-family: 'Playfair Display', serif;
+    font-size: 26px;
+    font-weight: 700;
+    line-height: 1.1;
+    color: var(--ink);
+  }
+  .stat .stat-val.small {
+    font-size: 16px;
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+  }
+
+  /* Section heading */
+  .section-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 16px;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .section-head h2 {
+    font-family: 'Playfair Display', serif;
+    font-size: 28px;
+    font-weight: 700;
+    margin: 0;
+    letter-spacing: -0.2px;
+  }
+  .section-head .meta {
+    font-size: 11px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  /* Numbered list items (cards) */
+  .item-list {
+    list-style: none;
+    margin: 0 0 28px;
+    padding: 0;
+  }
+  .item {
+    background: #fff;
+    border: 1px solid var(--line);
+    border-left: 4px solid var(--ink);
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    padding: 18px 22px;
+    cursor: pointer;
+    transition: background 0.15s ease, transform 0.12s ease, border-color 0.15s ease;
+    gap: 18px;
+    text-decoration: none;
+    color: var(--ink);
+    position: relative;
+  }
+  .item:hover {
+    background: #fffefb;
+    transform: translateX(2px);
+  }
+  .item .num {
+    font-family: 'Playfair Display', serif;
+    font-size: 22px;
+    font-weight: 600;
+    color: var(--ink);
+    min-width: 36px;
+    flex-shrink: 0;
+    letter-spacing: 0.5px;
+  }
+  .item .body {
+    flex: 1;
+    min-width: 0;
+  }
+  .item .title {
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--ink);
+    margin-bottom: 4px;
+  }
+  .item .sub {
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.4;
+  }
+  .item .arrow {
+    font-size: 18px;
+    color: var(--ink);
+    flex-shrink: 0;
+    transition: transform 0.15s ease;
+  }
+  .item:hover .arrow { transform: translateX(4px); }
+
+  .item.earned {
+    background: #fbf7ec;
+  }
+  .item.earned .num { color: var(--gold); }
+  .item.earned::after {
+    content: "EARNED";
+    position: absolute;
+    top: 10px; right: 50px;
+    font-size: 9px;
+    letter-spacing: 2px;
+    color: var(--good);
+    font-weight: 600;
+  }
+  .item.complete-rank .num { color: var(--good); }
+
+  /* Color variants for ranks */
+  .item.r-1 { border-left-color: var(--gold); }
+  .item.r-2 { border-left-color: var(--ink); }
+  .item.r-3 { border-left-color: var(--burgundy); }
+  .item.r-4 { border-left-color: var(--forest); }
+  .item.r-5 { border-left-color: var(--slate); }
+  .item.r-1 .num { color: var(--gold); }
+  .item.r-3 .num { color: var(--burgundy); }
+  .item.r-4 .num { color: var(--forest); }
+  .item.r-5 .num { color: var(--slate); }
+
+  .item .rank-progress {
+    font-size: 10px;
+    letter-spacing: 2px;
+    color: var(--muted);
+    margin-top: 4px;
+    text-transform: uppercase;
+  }
+  .item .progress-line {
+    height: 2px;
+    background: var(--line);
+    margin-top: 6px;
+    width: 100%;
+    overflow: hidden;
+  }
+  .item .progress-line .fill {
+    height: 100%;
+    background: var(--gold);
+    transition: width 0.4s ease;
+  }
+  .item.r-2 .progress-line .fill { background: var(--ink); }
+  .item.r-3 .progress-line .fill { background: var(--burgundy); }
+  .item.r-4 .progress-line .fill { background: var(--forest); }
+  .item.r-5 .progress-line .fill { background: var(--slate); }
+
+  /* Status bar */
+  .status-bar {
+    border: 1px solid var(--line);
+    padding: 10px 16px;
+    font-size: 11px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 22px;
+    background: rgba(255,255,255,0.4);
+  }
+  .status-bar .dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--good);
+    box-shadow: 0 0 0 3px rgba(47,107,61,0.18);
+  }
+
+  /* Footer text links */
+  .footer-links {
+    text-align: center;
+    margin-top: 18px;
+    font-size: 12px;
+  }
+  .footer-links a {
+    color: var(--muted);
+    text-decoration: none;
+    border-bottom: 1px solid transparent;
+    margin: 0 14px;
+    cursor: pointer;
+  }
+  .footer-links a:hover { color: var(--ink); border-bottom-color: var(--ink); }
+
+  /* Back link */
+  .back-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--muted);
+    font-size: 11px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    text-decoration: none;
+    margin-bottom: 24px;
+    cursor: pointer;
+    background: none;
+    border: none;
+    padding: 0;
+    font-family: inherit;
+    font-weight: 500;
+  }
+  .back-link:hover { color: var(--ink); }
+  .back-link::before { content: "←"; }
+
+  /* Setup screen */
+  .setup-wrap {
+    padding-top: 30px;
+  }
+  .setup-form {
+    background: #fff;
+    border: 1px solid var(--line);
+    padding: 36px 40px;
+  }
+  .setup-form label {
+    display: block;
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 6px;
+    margin-top: 18px;
+    font-weight: 500;
+  }
+  .setup-form label:first-child { margin-top: 0; }
+  input[type="text"], input[type="date"], textarea, select {
+    width: 100%;
+    padding: 11px 14px;
+    border: 1px solid var(--line);
+    border-radius: 0;
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    background: #fff;
+    color: var(--ink);
+    transition: border-color 0.15s ease;
+  }
+  input:focus, textarea:focus, select:focus {
+    outline: none;
+    border-color: var(--ink);
+  }
+  textarea {
+    resize: vertical;
+    min-height: 80px;
+    font-family: 'Inter', sans-serif;
+  }
+
+  /* Buttons */
+  button {
+    cursor: pointer;
+    font-family: 'Inter', sans-serif;
+    border-radius: 0;
+    border: 1px solid var(--ink);
+    padding: 12px 22px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    background: #fff;
+    color: var(--ink);
+    transition: background 0.15s ease, color 0.15s ease;
+  }
+  button:hover { background: var(--ink); color: var(--paper); }
+  button.primary { background: var(--ink); color: var(--paper); }
+  button.primary:hover { background: var(--gold); color: var(--ink); border-color: var(--gold); }
+  button.ghost { border-color: var(--line); color: var(--muted); }
+  button.ghost:hover { border-color: var(--ink); color: var(--ink); background: transparent; }
+  button.danger { border-color: var(--burgundy); color: var(--burgundy); }
+  button.danger:hover { background: var(--burgundy); color: #fff; }
+
+  /* Toolbar */
+  .toolbar {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    margin-bottom: 20px;
+  }
+  .toolbar button {
+    padding: 7px 12px;
+    font-size: 9px;
+    letter-spacing: 1.5px;
+  }
+  .edit-banner {
+    background: var(--ink);
+    color: var(--paper);
+    padding: 10px 16px;
+    font-size: 10px;
+    letter-spacing: 2.5px;
+    text-transform: uppercase;
+    text-align: center;
+    margin-bottom: 20px;
+    font-weight: 500;
+  }
+
+  /* Modal */
+  .modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(26,26,26,0.6);
+    display: none;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 60px 20px 40px;
+    z-index: 100;
+    overflow-y: auto;
+  }
+  .modal-backdrop.open { display: flex; }
+  .modal {
+    background: var(--paper);
+    max-width: 580px;
+    width: 100%;
+    border: 1px solid var(--ink);
+    position: relative;
+  }
+  .modal-head {
+    padding: 28px 36px 22px;
+    border-bottom: 1px solid var(--line);
+  }
+  .modal-head .eyebrow {
+    margin-bottom: 12px;
+  }
+  .modal-head h3 {
+    font-family: 'Playfair Display', serif;
+    font-size: 32px;
+    font-weight: 700;
+    line-height: 1.1;
+    margin: 0;
+    letter-spacing: -0.3px;
+  }
+  .modal-head .desc {
+    color: var(--muted);
+    font-size: 14px;
+    margin-top: 10px;
+    line-height: 1.5;
+  }
+  .modal-body { padding: 24px 36px; }
+  .modal-foot {
+    padding: 18px 36px;
+    border-top: 1px solid var(--line);
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    flex-wrap: wrap;
+    background: var(--bg-alt);
+  }
+  .modal-foot .right { display: flex; gap: 8px; }
+  .modal-close {
+    position: absolute;
+    top: 14px; right: 18px;
+    background: transparent;
+    border: none;
+    color: var(--muted);
+    font-size: 26px;
+    line-height: 1;
+    padding: 4px 8px;
+    cursor: pointer;
+    letter-spacing: 0;
+  }
+  .modal-close:hover { color: var(--ink); background: transparent; }
+
+  /* Requirements list */
+  .req-section {
+    margin-bottom: 22px;
+  }
+  .req-section h4 {
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 0 0 10px;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .req-section h4::before {
+    content: "";
+    display: inline-block;
+    width: 18px;
+    height: 1px;
+    background: var(--muted);
+  }
+  .req-list { list-style: none; padding: 0; margin: 0; counter-reset: req; }
+  .req-list li {
+    padding: 12px 0 12px 36px;
+    border-top: 1px solid var(--line);
+    font-size: 14px;
+    color: var(--ink-soft);
+    position: relative;
+    counter-increment: req;
+    line-height: 1.5;
+  }
+  .req-list li:last-child { border-bottom: 1px solid var(--line); }
+  .req-list li::before {
+    content: counter(req, decimal-leading-zero);
+    position: absolute;
+    left: 0;
+    top: 12px;
+    font-family: 'Playfair Display', serif;
+    font-size: 14px;
+    color: var(--gold);
+    font-weight: 600;
+  }
+
+  .signoff-card {
+    background: #fff;
+    border: 1px solid var(--gold);
+    border-left: 4px solid var(--gold);
+    padding: 18px 22px;
+    margin-top: 10px;
+  }
+  .signoff-card .lbl {
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--gold);
+    margin-bottom: 8px;
+    font-weight: 600;
+  }
+  .signoff-card .who {
+    font-family: 'Playfair Display', serif;
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--ink);
+    margin-bottom: 4px;
+  }
+  .signoff-card .when {
+    font-size: 12px;
+    color: var(--muted);
+    letter-spacing: 0.5px;
+  }
+  .signoff-card .notes {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid var(--line-soft);
+    font-size: 13px;
+    color: var(--ink-soft);
+    font-style: italic;
+  }
+
+  .signoff-form {
+    background: var(--bg-alt);
+    padding: 22px 24px;
+    border: 1px solid var(--line);
+  }
+  .signoff-form .form-eyebrow {
+    font-size: 10px;
+    letter-spacing: 2.5px;
+    text-transform: uppercase;
+    color: var(--ink);
+    font-weight: 600;
+    margin-bottom: 14px;
+  }
+  .signoff-form label {
+    display: block;
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 6px;
+    margin-top: 14px;
+    font-weight: 500;
+  }
+  .signoff-form label:first-of-type { margin-top: 0; }
+
+  /* Award celebration */
+  .award-burst {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+    z-index: 200;
+  }
+  .award-burst .badge-mark {
+    font-family: 'Playfair Display', serif;
+    background: var(--paper);
+    border: 2px solid var(--gold);
+    padding: 36px 48px;
+    text-align: center;
+    transform: scale(0.6);
+    opacity: 0;
+    animation: awardpop 1.4s cubic-bezier(.2,.7,.2,1) forwards;
+  }
+  .award-burst .badge-mark .eb {
+    font-size: 10px;
+    letter-spacing: 3px;
+    color: var(--gold);
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  .award-burst .badge-mark .nm {
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--ink);
+  }
+  @keyframes awardpop {
+    0% { transform: scale(0.6); opacity: 0; }
+    20% { transform: scale(1); opacity: 1; }
+    80% { transform: scale(1); opacity: 1; }
+    100% { transform: scale(1.05); opacity: 0; }
+  }
+
+  /* Empty add button */
+  .add-row {
+    border: 1px dashed var(--line);
+    padding: 14px;
+    text-align: center;
+    color: var(--muted);
+    font-size: 11px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    cursor: pointer;
+    background: transparent;
+    width: 100%;
+    margin-top: 8px;
+    font-weight: 500;
+  }
+  .add-row:hover {
+    border-color: var(--ink);
+    color: var(--ink);
+    background: transparent;
+  }
+
+  /* Profile name display variant */
+  .display-name {
+    font-family: 'Playfair Display', serif;
+    font-weight: 700;
+    font-size: 38px;
+    line-height: 1.05;
+    margin: 0;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  /* Rank-level header */
+  .rank-hero {
+    padding-bottom: 24px;
+    border-bottom: 1px solid var(--line);
+    margin-bottom: 30px;
+  }
+
+  /* Print */
+  @media print {
+    body::before { display: none; }
+    .toolbar, .back-link { display: none; }
+    .item { break-inside: avoid; border: 1px solid #ccc; }
+  }
+
+  @media (max-width: 640px) {
+    h1.display { font-size: 38px; }
+    .display-name { font-size: 28px; }
+    .container { padding: 28px 18px 60px; }
+    .modal-head { padding: 22px 22px 18px; }
+    .modal-body { padding: 18px 22px; }
+    .modal-foot { padding: 14px 22px; }
+    .modal-head h3 { font-size: 24px; }
+    .setup-form { padding: 24px 22px; }
+    .item { padding: 14px 16px; gap: 12px; }
+    .item .num { font-size: 18px; min-width: 28px; }
+    .item .title { font-size: 12px; }
+    .stats-row { flex-direction: column; }
+    .stat { border-right: none; border-bottom: 1px solid var(--line); }
+    .stat:last-child { border-bottom: none; }
+  }
+</style>
+</head>
+<body>
+
+<header class="brand-bar">
+  <div class="brand-mark" onclick="goHome()">
+    <div class="bolt">
+      <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path d="M14 2 L4 14 L11 14 L9 22 L20 10 L13 10 Z" fill="#1a1a1a" stroke="#1a1a1a" stroke-width="0.5" stroke-linejoin="round"/>
+      </svg>
+    </div>
+    <div class="brand-name">HOMESTEAD</div>
+    <div class="brand-sub">ELECTRIC</div>
+  </div>
+</header>
+
+<div class="container" id="container"></div>
+
+<!-- Modal -->
+<div class="modal-backdrop" id="modalBackdrop">
+  <div class="modal" id="modal"></div>
+</div>
+
+<input type="file" id="importFile" accept=".json" style="display:none" />
+
+<script>
+/* =========================================================================
+   Homestead Training — Editorial-style merit badge tracker
+   ========================================================================= */
+
+const STORAGE_KEY = "homesteadTraining.v3";
+
+const DEFAULT_CURRICULUM = {
+  ranks: [
+    {
+      id: "rank-1",
+      name: "Layout & Rough-In",
+      subtitle: "Read the plan, mark the walls, prep the framing",
+      badges: [
+        { id: "b-markout", name: "Marking Out",
+          desc: "Lay out box, fixture, and switch locations on a residential rough-in.",
+          reqs: [
+            "Mark switch boxes at the company-standard height.",
+            "Mark receptacle locations per plan and NEC spacing rules.",
+            "Mark and confirm can-light and fixture layout from the print."
+          ]},
+        { id: "b-drill", name: "Drilling Holes",
+          desc: "Bore studs, plates, and joists cleanly for cable and conduit runs.",
+          reqs: [
+            "Pick the correct bit size for the run.",
+            "Bore in line and centered, within allowed depth zones.",
+            "Avoid plumbing, HVAC, and structural conflicts."
+          ]},
+        { id: "b-cans", name: "Can Layouts",
+          desc: "Plan and lay out recessed can lighting for a room.",
+          reqs: [
+            "Calculate spacing for even illumination.",
+            "Stay clear of joists, ducts, and other obstructions.",
+            "Verify IC-rated vs. non-IC where required."
+          ]}
+      ]
+    },
+    {
+      id: "rank-2",
+      name: "Wire Pulls & Runs",
+      subtitle: "Run the wire, land it cleanly, label everything",
+      badges: [
+        { id: "b-breakup", name: "Breaking Up Circuits",
+          desc: "Split loads correctly across circuits during rough-in.",
+          reqs: [
+            "Identify dedicated circuit requirements (kitchen, bath, laundry, etc.).",
+            "Balance general lighting and receptacle load.",
+            "Stay within the company standard for device count per circuit."
+          ]},
+        { id: "b-overhead", name: "Making Up Overhead",
+          desc: "Make up overhead boxes — fans, fixtures, 4/0 pancakes, etc.",
+          reqs: [
+            "Properly support fan-rated boxes.",
+            "Make up neutrals and grounds correctly.",
+            "Stub conductors at the right length for trim."
+          ]},
+        { id: "b-pulltape", name: "Pulling Wire / Tape Locates",
+          desc: "Pull cable through framing and use tape locates to find runs in walls.",
+          reqs: [
+            "Pull NM cable smoothly without damaging the jacket.",
+            "Use a tone generator and locator to trace a run.",
+            "Document hidden cable paths for the trim crew."
+          ]},
+        { id: "b-homerun", name: "Homeruns",
+          desc: "Run homerun cables cleanly from boxes back to the panel.",
+          reqs: [
+            "Identify circuit count and size at the panel.",
+            "Route cleanly through framing without sharp bends.",
+            "Label each homerun at the panel for make-up."
+          ]},
+        { id: "b-ser", name: "SER Runs",
+          desc: "Install SER cable for sub-feeds and large service drops.",
+          reqs: [
+            "Strip and terminate aluminum safely (anti-oxidant where required).",
+            "Secure SER per code spacing and bend radius.",
+            "Bond and land conductors correctly in the load center."
+          ]}
+      ]
+    },
+    {
+      id: "rank-3",
+      name: "Switching & Trim",
+      subtitle: "Devices, switching, and the make-up that customers see",
+      badges: [
+        { id: "b-switchconst", name: "Switches / Constant Power",
+          desc: "Wire single-pole switches and constant-power feeds.",
+          reqs: [
+            "Identify switched-hot vs. constant-hot at the box.",
+            "Wire the switch leg correctly back to the fixture.",
+            "Properly ground the device in metal vs. plastic boxes."
+          ]},
+        { id: "b-34way", name: "3 Ways / 4 Ways",
+          desc: "Wire multi-location switching for lighting circuits.",
+          reqs: [
+            "Wire a 3-way with two travelers and a common.",
+            "Add a 4-way between two 3-ways.",
+            "Troubleshoot a miswired 3-way circuit."
+          ]},
+        { id: "b-mupoutlets", name: "Making Up Outlets",
+          desc: "Terminate residential receptacles cleanly at trim.",
+          reqs: [
+            "Make tight pigtails or correct side-wire connections.",
+            "Properly land hot, neutral, and ground.",
+            "Set device plumb and flush in the box."
+          ]},
+        { id: "b-mupswitches", name: "Making Up Switches",
+          desc: "Terminate switches and dimmers at trim.",
+          reqs: [
+            "Identify and land hot, switched-hot, travelers, and ground.",
+            "Bundle conductors neatly back into the box.",
+            "Verify operation before plating."
+          ]}
+      ]
+    },
+    {
+      id: "rank-4",
+      name: "Make-Up & Advanced",
+      subtitle: "Panels, transfer switches, and the high-skill work",
+      badges: [
+        { id: "b-muppanel", name: "Making Up Panels",
+          desc: "Land and label conductors in a residential load center.",
+          reqs: [
+            "Strip and torque conductors to manufacturer spec.",
+            "Bond neutral and ground correctly at main vs. sub-panel.",
+            "Fill out the panel directory legibly and accurately."
+          ]},
+        { id: "b-ats", name: "Wiring ATS / Generators",
+          desc: "Install transfer switches and generator interconnects.",
+          reqs: [
+            "Identify and install the correct transfer switch type (ATS, MTS, interlock).",
+            "Land utility, generator, and load conductors correctly.",
+            "Verify mechanical interlock, labeling, and operation."
+          ]},
+        { id: "b-piping", name: "Piping in Unframed Walls",
+          desc: "Run conduit through framing and structure before walls are closed.",
+          reqs: [
+            "Lay out a clean run with minimum bends.",
+            "Bend EMT to fit a real-world path.",
+            "Support per code spacing and box offsets."
+          ]},
+        { id: "b-lcp", name: "Lighting Control Panels",
+          desc: "Install and terminate lighting control panels.",
+          reqs: [
+            "Identify line and load terminals.",
+            "Land and label each circuit cleanly.",
+            "Verify low-voltage control wiring per manufacturer."
+          ]}
+      ]
+    }
+  ]
+};
+
+/* ---------- State ---------- */
+let state = loadState();
+let editMode = false;
+let view = { name: "home", rankId: null };
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && parsed.curriculum && parsed.apprentice) return parsed;
+    }
+  } catch (e) {}
+  return null;
+}
+function saveState() {
+  if (!state) return;
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+}
+
+/* ---------- Setup ---------- */
+function renderSetup() {
+  const c = document.getElementById("container");
+  c.innerHTML = `
+    <div class="setup-wrap">
+      <div class="eyebrow"><span>Apprentice Training</span><span class="sep">·</span><span class="sub">Residential</span></div>
+      <h1 class="display">Begin the trail<span class="punct">.</span></h1>
+      <p class="subhead">A field-tested progression for residential electricians. Earn badges. Build rank. Track every sign-off.</p>
+      <div class="setup-form">
+        <label for="setupName">Apprentice Name</label>
+        <input type="text" id="setupName" placeholder="Jordan Martinez" autofocus />
+        <label for="setupStart">Start Date</label>
+        <input type="date" id="setupStart" value="${new Date().toISOString().slice(0,10)}" />
+        <label for="setupCompany">Company / Crew</label>
+        <input type="text" id="setupCompany" value="Homestead Electric" />
+        <div style="margin-top:24px; display:flex; justify-content:flex-end;">
+          <button class="primary" id="setupGo">Begin →</button>
+        </div>
+      </div>
+    </div>
+  `;
+  document.getElementById("setupGo").addEventListener("click", () => {
+    const name = document.getElementById("setupName").value.trim() || "Apprentice";
+    const start = document.getElementById("setupStart").value;
+    const company = document.getElementById("setupCompany").value.trim();
+    state = {
+      apprentice: { name, startDate: start, company, earnedBadges: {} },
+      curriculum: JSON.parse(JSON.stringify(DEFAULT_CURRICULUM))
+    };
+    saveState();
+    view = { name: "home" };
+    render();
+  });
+}
+
+/* ---------- Render router ---------- */
+function render() {
+  if (!state) { renderSetup(); return; }
+  if (view.name === "home") return renderHome();
+  if (view.name === "rank") return renderRank(view.rankId);
+}
+
+/* ---------- Home ---------- */
+function renderHome() {
+  const c = document.getElementById("container");
+  const { apprentice, curriculum } = state;
+  const totalBadges = curriculum.ranks.reduce((s, r) => s + r.badges.length, 0);
+  const earnedCount = Object.keys(apprentice.earnedBadges).length;
+  const pct = totalBadges === 0 ? 0 : Math.round((earnedCount / totalBadges) * 100);
+  const currentRank = computeCurrentRank(curriculum, apprentice);
+  const nameUpper = apprentice.name.toUpperCase();
+
+  c.innerHTML = `
+    <div class="toolbar">
+      <button class="ghost" onclick="toggleEdit()">${editMode ? "Done" : "Edit"}</button>
+      <button class="ghost" onclick="doExport()">Export</button>
+      <button class="ghost" onclick="document.getElementById('importFile').click()">Import</button>
+      <button class="ghost" onclick="doReset()">Reset</button>
+    </div>
+    ${editMode ? '<div class="edit-banner">Edit mode — Click ranks to modify. Click badges inside a rank to edit them.</div>' : ''}
+
+    <div class="eyebrow">
+      <span>Apprentice Training</span>
+      <span class="sep">·</span>
+      <span class="sub">${escapeHtml(apprentice.company || "Residential")}</span>
+    </div>
+    <h1 class="display-name">${escapeHtml(nameUpper)}<span class="punct" style="color:var(--gold)">.</span></h1>
+    <p class="subhead" style="margin-top:8px">Started ${formatDate(apprentice.startDate)} · Currently ${escapeHtml(currentRank.name)} ${editMode ? '<button class="ghost" style="margin-left:10px; padding:4px 10px; font-size:9px;" onclick="editProfile()">Edit profile</button>' : ''}</p>
+
+    <div class="stats-row">
+      <div class="stat">
+        <div class="stat-lbl">Badges Earned</div>
+        <div class="stat-val">${earnedCount} <span style="font-size:14px; color:var(--muted); font-weight:400; font-family:'Inter',sans-serif;">/ ${totalBadges}</span></div>
+      </div>
+      <div class="stat">
+        <div class="stat-lbl">Progress</div>
+        <div class="stat-val">${pct}%</div>
+      </div>
+      <div class="stat">
+        <div class="stat-lbl">Rank</div>
+        <div class="stat-val small">${escapeHtml(currentRank.name)}</div>
+      </div>
+    </div>
+
+    <div class="section-head">
+      <h2>Ranks</h2>
+      <span class="meta">${curriculum.ranks.length} · Sequential</span>
+    </div>
+    <ul class="item-list" id="rankList"></ul>
+
+    ${editMode ? '<button class="add-row" onclick="addRank()">+ Add a New Rank</button>' : ''}
+
+    <div class="status-bar">
+      <span class="dot"></span>
+      <span>Tracker active · Local to this device · Last saved ${new Date().toLocaleString()}</span>
+    </div>
+
+    <div class="footer-links">
+      <a onclick="doExport()">Export progress</a>
+      <a onclick="document.getElementById('importFile').click()">Import progress</a>
+    </div>
+  `;
+
+  const list = document.getElementById("rankList");
+  curriculum.ranks.forEach((rank, idx) => {
+    const earnedInRank = rank.badges.filter(b => apprentice.earnedBadges[b.id]).length;
+    const totalInRank = rank.badges.length;
+    const rankPct = totalInRank === 0 ? 0 : Math.round((earnedInRank / totalInRank) * 100);
+    const isComplete = totalInRank > 0 && earnedInRank === totalInRank;
+    const colorClass = "r-" + ((idx % 5) + 1);
+
+    const li = document.createElement("li");
+    li.className = "item " + colorClass + (isComplete ? " complete-rank" : "");
+    li.innerHTML = `
+      <div class="num">${String(idx + 1).padStart(2, "0")}</div>
+      <div class="body">
+        <div class="title">${escapeHtml(rank.name)}</div>
+        <div class="sub">${escapeHtml(rank.subtitle || "")}</div>
+        <div class="rank-progress">${earnedInRank} of ${totalInRank} badges · ${rankPct}%</div>
+        <div class="progress-line"><div class="fill" style="width:${rankPct}%"></div></div>
+      </div>
+      <div class="arrow">→</div>
+    `;
+    li.addEventListener("click", () => {
+      view = { name: "rank", rankId: rank.id };
+      window.scrollTo(0,0);
+      render();
+    });
+    list.appendChild(li);
+  });
+}
+
+/* ---------- Rank (badges) ---------- */
+function renderRank(rankId) {
+  const c = document.getElementById("container");
+  const { apprentice, curriculum } = state;
+  const rank = curriculum.ranks.find(r => r.id === rankId);
+  if (!rank) { view = { name: "home" }; return render(); }
+  const idx = curriculum.ranks.findIndex(r => r.id === rankId);
+  const earnedInRank = rank.badges.filter(b => apprentice.earnedBadges[b.id]).length;
+  const totalInRank = rank.badges.length;
+  const rankPct = totalInRank === 0 ? 0 : Math.round((earnedInRank / totalInRank) * 100);
+  const colorClass = "r-" + ((idx % 5) + 1);
+
+  c.innerHTML = `
+    <button class="back-link" onclick="goHome()">Back to ranks</button>
+
+    <div class="rank-hero">
+      <div class="eyebrow">
+        <span>Rank ${String(idx + 1).padStart(2,"0")}</span>
+        <span class="sep">·</span>
+        <span class="sub">${earnedInRank} / ${totalInRank} earned</span>
+      </div>
+      <h1 class="display">${escapeHtml(rank.name)}<span class="punct">.</span></h1>
+      <p class="subhead">${escapeHtml(rank.subtitle || "")}</p>
+      ${editMode ? '<button class="ghost" onclick="editRank(\'' + rank.id + '\')">Edit rank</button>' : ''}
+    </div>
+
+    <div class="section-head">
+      <h2>Badges</h2>
+      <span class="meta">${rankPct}% Complete</span>
+    </div>
+
+    <ul class="item-list" id="badgeList"></ul>
+
+    ${editMode ? '<button class="add-row" onclick="addBadge(\'' + rank.id + '\')">+ Add a New Badge</button>' : ''}
+  `;
+
+  const list = document.getElementById("badgeList");
+  rank.badges.forEach((badge, bidx) => {
+    const earned = apprentice.earnedBadges[badge.id];
+    const li = document.createElement("li");
+    li.className = "item " + colorClass + (earned ? " earned" : "");
+    li.innerHTML = `
+      <div class="num">${String(bidx + 1).padStart(2, "0")}</div>
+      <div class="body">
+        <div class="title">${escapeHtml(badge.name)}</div>
+        <div class="sub">${escapeHtml(badge.desc || "")}</div>
+        ${earned ? `<div class="rank-progress">Signed by ${escapeHtml(earned.trainer)} · ${formatDate(earned.date)}</div>` : `<div class="rank-progress">${(badge.reqs || []).length} requirements</div>`}
+      </div>
+      <div class="arrow">→</div>
+    `;
+    li.addEventListener("click", () => openBadge(rank.id, badge.id));
+    list.appendChild(li);
+  });
+}
+
+function goHome() {
+  view = { name: "home" };
+  window.scrollTo(0,0);
+  render();
+}
+
+/* ---------- Compute current rank ---------- */
+function computeCurrentRank(curriculum, apprentice) {
+  for (const rank of curriculum.ranks) {
+    const allEarned = rank.badges.length > 0 && rank.badges.every(b => apprentice.earnedBadges[b.id]);
+    if (!allEarned) return rank;
+  }
+  return curriculum.ranks[curriculum.ranks.length - 1] || { name: "—" };
+}
+
+/* ---------- Badge modal ---------- */
+function openBadge(rankId, badgeId) {
+  const rank = state.curriculum.ranks.find(r => r.id === rankId);
+  const badge = rank.badges.find(b => b.id === badgeId);
+  const earned = state.apprentice.earnedBadges[badgeId];
+  const today = new Date().toISOString().slice(0,10);
+
+  const modal = document.getElementById("modal");
+  modal.innerHTML = `
+    <button class="modal-close" onclick="closeModal()">×</button>
+    <div class="modal-head">
+      <div class="eyebrow"><span>${escapeHtml(rank.name)}</span><span class="sep">·</span><span class="sub">Badge</span></div>
+      <h3>${editMode ? '<input type="text" id="bName" value="' + escapeAttr(badge.name) + '" style="font: inherit; border: none; border-bottom: 1px dashed var(--line); width: 100%; padding: 4px 0;" />' : escapeHtml(badge.name)}</h3>
+      ${editMode
+        ? '<textarea id="bDesc" style="margin-top:10px">' + escapeHtml(badge.desc || "") + '</textarea>'
+        : (badge.desc ? '<div class="desc">' + escapeHtml(badge.desc) + '</div>' : "")}
+    </div>
+    <div class="modal-body">
+      <div class="req-section">
+        <h4>Requirements</h4>
+        ${editMode
+          ? '<textarea id="bReqs" rows="6" placeholder="One requirement per line">' + escapeHtml((badge.reqs || []).join("\n")) + '</textarea>'
+          : '<ol class="req-list">' + (badge.reqs || []).map(r => '<li>' + escapeHtml(r) + '</li>').join("") + '</ol>'}
+      </div>
+
+      ${!editMode ? (earned ? `
+        <div class="req-section">
+          <h4>Sign-Off</h4>
+          <div class="signoff-card">
+            <div class="lbl">Verified by</div>
+            <div class="who">${escapeHtml(earned.trainer || "—")}</div>
+            <div class="when">${formatDate(earned.date)}</div>
+            ${earned.notes ? '<div class="notes">"' + escapeHtml(earned.notes) + '"</div>' : ""}
+          </div>
+        </div>
+      ` : `
+        <div class="req-section">
+          <h4>Award This Badge</h4>
+          <div class="signoff-form">
+            <div class="form-eyebrow">— Trainer Sign-Off</div>
+            <label>Trainer / Verifier Name</label>
+            <input type="text" id="trainerName" placeholder="Justin Cloward" />
+            <label>Date</label>
+            <input type="date" id="signoffDate" value="${today}" />
+            <label>Notes (optional)</label>
+            <textarea id="signoffNotes" placeholder="Verified on the Anderson job"></textarea>
+          </div>
+        </div>
+      `) : ""}
+    </div>
+    <div class="modal-foot">
+      <div>
+        ${editMode
+          ? '<button class="danger" onclick="deleteBadge(\'' + rankId + '\',\'' + badgeId + '\')">Delete</button>'
+          : (earned ? '<button class="danger" onclick="revokeBadge(\'' + badgeId + '\')">Revoke</button>' : "")}
+      </div>
+      <div class="right">
+        <button class="ghost" onclick="closeModal()">Close</button>
+        ${editMode
+          ? '<button class="primary" onclick="saveBadgeEdits(\'' + rankId + '\',\'' + badgeId + '\')">Save</button>'
+          : (earned ? "" : '<button class="primary" onclick="signOffBadge(\'' + badgeId + '\')">Award →</button>')}
+      </div>
+    </div>
+  `;
+  document.getElementById("modalBackdrop").classList.add("open");
+}
+
+function closeModal() {
+  document.getElementById("modalBackdrop").classList.remove("open");
+}
+
+function signOffBadge(badgeId) {
+  const trainer = document.getElementById("trainerName").value.trim();
+  const date = document.getElementById("signoffDate").value;
+  const notes = document.getElementById("signoffNotes").value.trim();
+  if (!trainer) { alert("Trainer / verifier name is required."); return; }
+  if (!date) { alert("Date is required."); return; }
+
+  // Find badge name for celebration
+  let badgeName = "Badge";
+  for (const r of state.curriculum.ranks) {
+    const b = r.badges.find(x => x.id === badgeId);
+    if (b) { badgeName = b.name; break; }
+  }
+
+  state.apprentice.earnedBadges[badgeId] = { trainer, date, notes };
+  saveState();
+  closeModal();
+  render();
+  celebrate(badgeName);
+}
+
+function revokeBadge(badgeId) {
+  if (!confirm("Revoke this badge? Sign-off info will be removed.")) return;
+  delete state.apprentice.earnedBadges[badgeId];
+  saveState();
+  closeModal();
+  render();
+}
+
+/* ---------- Edit handlers ---------- */
+function saveBadgeEdits(rankId, badgeId) {
+  const rank = state.curriculum.ranks.find(r => r.id === rankId);
+  const badge = rank.badges.find(b => b.id === badgeId);
+  badge.name = document.getElementById("bName").value.trim() || badge.name;
+  badge.desc = document.getElementById("bDesc").value.trim();
+  badge.reqs = document.getElementById("bReqs").value.split("\n").map(s => s.trim()).filter(Boolean);
+  saveState();
+  closeModal();
+  render();
+}
+function deleteBadge(rankId, badgeId) {
+  if (!confirm("Delete this badge? This cannot be undone.")) return;
+  const rank = state.curriculum.ranks.find(r => r.id === rankId);
+  rank.badges = rank.badges.filter(b => b.id !== badgeId);
+  delete state.apprentice.earnedBadges[badgeId];
+  saveState();
+  closeModal();
+  render();
+}
+function addBadge(rankId) {
+  const rank = state.curriculum.ranks.find(r => r.id === rankId);
+  const newId = "b-" + Math.random().toString(36).slice(2, 9);
+  rank.badges.push({
+    id: newId,
+    name: "New Badge",
+    desc: "Describe what this badge covers.",
+    reqs: ["First requirement"]
+  });
+  saveState();
+  render();
+  openBadge(rankId, newId);
+}
+function editRank(rankId) {
+  const rank = state.curriculum.ranks.find(r => r.id === rankId);
+  const modal = document.getElementById("modal");
+  modal.innerHTML = `
+    <button class="modal-close" onclick="closeModal()">×</button>
+    <div class="modal-head">
+      <div class="eyebrow"><span>Rank</span><span class="sep">·</span><span class="sub">Edit</span></div>
+      <h3>Edit rank</h3>
+    </div>
+    <div class="modal-body">
+      <label style="font-size:10px; letter-spacing:2px; text-transform:uppercase; color:var(--muted); display:block; margin-bottom:6px;">Name</label>
+      <input type="text" id="rName" value="${escapeAttr(rank.name)}" />
+      <label style="font-size:10px; letter-spacing:2px; text-transform:uppercase; color:var(--muted); display:block; margin:14px 0 6px;">Subtitle</label>
+      <input type="text" id="rSub" value="${escapeAttr(rank.subtitle || '')}" />
+    </div>
+    <div class="modal-foot">
+      <div><button class="danger" onclick="deleteRank('${rankId}')">Delete Rank</button></div>
+      <div class="right">
+        <button class="ghost" onclick="closeModal()">Cancel</button>
+        <button class="primary" onclick="saveRankEdits('${rankId}')">Save</button>
+      </div>
+    </div>
+  `;
+  document.getElementById("modalBackdrop").classList.add("open");
+}
+function saveRankEdits(rankId) {
+  const rank = state.curriculum.ranks.find(r => r.id === rankId);
+  rank.name = document.getElementById("rName").value.trim() || rank.name;
+  rank.subtitle = document.getElementById("rSub").value.trim();
+  saveState();
+  closeModal();
+  render();
+}
+function deleteRank(rankId) {
+  if (!confirm("Delete this rank and all its badges? This cannot be undone.")) return;
+  const rank = state.curriculum.ranks.find(r => r.id === rankId);
+  rank.badges.forEach(b => delete state.apprentice.earnedBadges[b.id]);
+  state.curriculum.ranks = state.curriculum.ranks.filter(r => r.id !== rankId);
+  saveState();
+  view = { name: "home" };
+  closeModal();
+  render();
+}
+function addRank() {
+  const newId = "rank-" + Math.random().toString(36).slice(2, 9);
+  state.curriculum.ranks.push({
+    id: newId,
+    name: "New Rank",
+    subtitle: "Describe this rank",
+    badges: []
+  });
+  saveState();
+  render();
+  editRank(newId);
+}
+
+function editProfile() {
+  const a = state.apprentice;
+  const modal = document.getElementById("modal");
+  modal.innerHTML = `
+    <button class="modal-close" onclick="closeModal()">×</button>
+    <div class="modal-head">
+      <div class="eyebrow"><span>Profile</span><span class="sep">·</span><span class="sub">Edit</span></div>
+      <h3>Edit profile</h3>
+    </div>
+    <div class="modal-body">
+      <label style="font-size:10px; letter-spacing:2px; text-transform:uppercase; color:var(--muted); display:block; margin-bottom:6px;">Apprentice Name</label>
+      <input type="text" id="pName" value="${escapeAttr(a.name)}" />
+      <label style="font-size:10px; letter-spacing:2px; text-transform:uppercase; color:var(--muted); display:block; margin:14px 0 6px;">Company</label>
+      <input type="text" id="pCo" value="${escapeAttr(a.company || '')}" />
+      <label style="font-size:10px; letter-spacing:2px; text-transform:uppercase; color:var(--muted); display:block; margin:14px 0 6px;">Start Date</label>
+      <input type="date" id="pStart" value="${escapeAttr(a.startDate || '')}" />
+    </div>
+    <div class="modal-foot">
+      <div></div>
+      <div class="right">
+        <button class="ghost" onclick="closeModal()">Cancel</button>
+        <button class="primary" onclick="saveProfileEdits()">Save</button>
+      </div>
+    </div>
+  `;
+  document.getElementById("modalBackdrop").classList.add("open");
+}
+function saveProfileEdits() {
+  state.apprentice.name = document.getElementById("pName").value.trim() || state.apprentice.name;
+  state.apprentice.company = document.getElementById("pCo").value.trim();
+  state.apprentice.startDate = document.getElementById("pStart").value;
+  saveState();
+  closeModal();
+  render();
+}
+
+/* ---------- Toolbar actions ---------- */
+function toggleEdit() {
+  editMode = !editMode;
+  render();
+}
+function doExport() {
+  if (!state) return;
+  const blob = new Blob([JSON.stringify(state, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  const safe = (state.apprentice.name || "apprentice").replace(/\s+/g, "-").toLowerCase();
+  a.href = url;
+  a.download = `homestead-training-${safe}-${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+function doReset() {
+  if (!confirm("Reset everything on this device? All progress and edits will be lost.")) return;
+  localStorage.removeItem(STORAGE_KEY);
+  state = null;
+  editMode = false;
+  view = { name: "home" };
+  render();
+}
+document.getElementById("importFile").addEventListener("change", (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      const data = JSON.parse(ev.target.result);
+      if (!data.apprentice || !data.curriculum) throw new Error("Invalid file");
+      if (!confirm("This will replace the current profile and curriculum on this device. Continue?")) return;
+      state = data;
+      saveState();
+      view = { name: "home" };
+      render();
+    } catch (err) {
+      alert("Could not import: " + err.message);
+    }
+  };
+  reader.readAsText(file);
+});
+
+document.getElementById("modalBackdrop").addEventListener("click", (e) => {
+  if (e.target.id === "modalBackdrop") closeModal();
+});
+
+/* ---------- Helpers ---------- */
+function escapeHtml(s) {
+  return String(s ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+function escapeAttr(s) { return escapeHtml(s); }
+function formatDate(d) {
+  if (!d) return "";
+  const dt = new Date(d);
+  if (isNaN(dt)) return d;
+  return dt.toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
+}
+function celebrate(name) {
+  const burst = document.createElement("div");
+  burst.className = "award-burst";
+  burst.innerHTML = `
+    <div class="badge-mark">
+      <div class="eb">— Badge Earned</div>
+      <div class="nm">${escapeHtml(name)}</div>
+    </div>
+  `;
+  document.body.appendChild(burst);
+  setTimeout(() => burst.remove(), 1400);
+}
+
+/* expose for inline handlers */
+window.closeModal = closeModal;
+window.signOffBadge = signOffBadge;
+window.revokeBadge = revokeBadge;
+window.saveBadgeEdits = saveBadgeEdits;
+window.deleteBadge = deleteBadge;
+window.addBadge = addBadge;
+window.editRank = editRank;
+window.saveRankEdits = saveRankEdits;
+window.deleteRank = deleteRank;
+window.addRank = addRank;
+window.editProfile = editProfile;
+window.saveProfileEdits = saveProfileEdits;
+window.goHome = goHome;
+window.toggleEdit = toggleEdit;
+window.doExport = doExport;
+window.doReset = doReset;
+
+/* ---------- Boot ---------- */
+render();
+</script>
+</body>
+</html>
