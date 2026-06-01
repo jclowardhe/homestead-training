@@ -45,10 +45,10 @@
   --etch:            0 1px 0 rgba(0,0,0,0.7);
 
   /* 4 corner rivets — apply as background on any card */
-  --rivet:           radial-gradient(circle 2.5px at 9px 9px,                          #0a0604, transparent 70%),
-                     radial-gradient(circle 2.5px at calc(100% - 9px) 9px,             #0a0604, transparent 70%),
-                     radial-gradient(circle 2.5px at 9px calc(100% - 9px),             #0a0604, transparent 70%),
-                     radial-gradient(circle 2.5px at calc(100% - 9px) calc(100% - 9px),#0a0604, transparent 70%);
+  --rivet:           radial-gradient(circle 1.6px at 8px 8px,                          rgba(10,6,4,0.7), transparent 70%),
+                     radial-gradient(circle 1.6px at calc(100% - 8px) 8px,             rgba(10,6,4,0.7), transparent 70%),
+                     radial-gradient(circle 1.6px at 8px calc(100% - 8px),             rgba(10,6,4,0.7), transparent 70%),
+                     radial-gradient(circle 1.6px at calc(100% - 8px) calc(100% - 8px),rgba(10,6,4,0.7), transparent 70%);
 }
 
 * { box-sizing: border-box; }
@@ -67,8 +67,8 @@ html, body {
 body {
   position: relative;
   background:
-    repeating-linear-gradient(90deg, var(--wood-seam) 0 2px, transparent 2px 64px),
-    repeating-linear-gradient(90deg, transparent 0 2px, var(--wood-light) 2px 3px, transparent 3px 64px),
+    repeating-linear-gradient(90deg, rgba(15,8,4,0.55) 0 1px, transparent 1px 120px),
+    repeating-linear-gradient(90deg, transparent 0 1px, rgba(74,48,36,0.4) 1px 2px, transparent 2px 120px),
     linear-gradient(180deg, var(--wood) 0%, var(--wood-deep) 100%);
   background-attachment: fixed;
 }
@@ -97,8 +97,8 @@ header.brand-bar {
   text-align: center;
   padding: 22px 20px 24px;
   background:
-    repeating-linear-gradient(90deg, var(--wood-seam) 0 2px, transparent 2px 64px),
-    repeating-linear-gradient(90deg, transparent 0 2px, var(--wood-light) 2px 3px, transparent 3px 64px),
+    repeating-linear-gradient(90deg, rgba(15,8,4,0.55) 0 1px, transparent 1px 120px),
+    repeating-linear-gradient(90deg, transparent 0 1px, rgba(74,48,36,0.4) 1px 2px, transparent 2px 120px),
     linear-gradient(180deg, var(--wood) 0%, #321e15 100%);
   border-bottom: 3px solid var(--wood-seam);
   box-shadow:
@@ -127,8 +127,8 @@ header.brand-bar {
   font-size: 13px; letter-spacing: 1.8px; font-weight: 400;
   color: var(--brass-stamp);
   background:
-    radial-gradient(circle 2.4px at 9px 50%, rgba(20,8,2,0.9), transparent 70%),
-    radial-gradient(circle 2.4px at calc(100% - 9px) 50%, rgba(20,8,2,0.9), transparent 70%),
+    radial-gradient(circle 1.7px at 8px 50%, rgba(20,8,2,0.85), transparent 70%),
+    radial-gradient(circle 1.7px at calc(100% - 8px) 50%, rgba(20,8,2,0.85), transparent 70%),
     linear-gradient(180deg, var(--brass-light) 0%, var(--brass) 50%, #8a5a2c 100%);
   padding: 5px 28px;
   border: 1px solid var(--brass-dark);
@@ -162,18 +162,18 @@ header.brand-bar {
 .eyebrow .sep { color: var(--muted-dim); }
 .eyebrow .sub { color: var(--muted); font-style: normal; }
 
-/* ===== Wanted-poster display headings ===== */
+/* ===== Display headings (Title Case, modest serif) ===== */
 h1.display, .display-name {
-  font-family: 'Rye', 'Bitter', Georgia, serif;
-  font-weight: 400;
-  font-size: 40px; line-height: 1.1;
+  font-family: 'Bitter', Georgia, serif;
+  font-weight: 700;
+  font-size: 38px; line-height: 1.1;
   margin: 0 0 10px;
   color: var(--text-strong);
-  letter-spacing: 0.4px;
+  letter-spacing: -0.2px;
   text-shadow: var(--etch);
-  text-transform: uppercase;
+  text-transform: none;
 }
-.display-name { font-size: 34px; }
+.display-name { font-size: 32px; }
 h1.display .punct, .display-name .punct { color: var(--dust-red); }
 
 .subhead {
@@ -203,7 +203,7 @@ h1.display .punct, .display-name .punct { color: var(--dust-red); }
   color: var(--muted); margin-bottom: 6px; font-weight: 600;
 }
 .stat .stat-val {
-  font-family: 'Rye', 'Bitter', serif; font-size: 28px; font-weight: 400;
+  font-family: 'Bitter', Georgia, serif; font-size: 28px; font-weight: 400;
   color: var(--brass-soft); line-height: 1; text-shadow: var(--etch);
 }
 .stat .stat-val.small { font-size: 17px; }
@@ -217,9 +217,9 @@ h1.display .punct, .display-name .punct { color: var(--dust-red); }
   padding-bottom: 10px;
 }
 .section-head h2 {
-  font-family: 'Rye', 'Bitter', serif; font-size: 22px; font-weight: 400;
+  font-family: 'Bitter', Georgia, serif; font-size: 22px; font-weight: 700;
   margin: 0; color: var(--text-strong);
-  letter-spacing: 0.5px; text-transform: uppercase;
+  letter-spacing: -0.1px; text-transform: none;
   text-shadow: var(--etch);
 }
 .section-head .meta {
@@ -256,16 +256,16 @@ h1.display .punct, .display-name .punct { color: var(--dust-red); }
   box-shadow: inset 0 1px 0 rgba(255,235,200,0.08), 0 6px 14px -6px rgba(0,0,0,0.8);
 }
 .item .num {
-  font-family: 'Rye', 'Bitter', serif; font-size: 24px; font-weight: 400;
+  font-family: 'Bitter', Georgia, serif; font-size: 24px; font-weight: 400;
   color: var(--brass); min-width: 44px; flex-shrink: 0;
   text-shadow: var(--etch);
 }
 .item .body { flex: 1; min-width: 0; }
 .item .title {
-  font-family: 'Rye', 'Bitter', serif;
-  font-size: 15px; font-weight: 400; letter-spacing: 0.5px;
+  font-family: 'Bitter', Georgia, serif;
+  font-size: 16px; font-weight: 700; letter-spacing: 0;
   color: var(--text-strong); margin-bottom: 4px;
-  text-transform: uppercase;
+  text-transform: none;
 }
 .item .sub { font-family: 'Bitter', serif; font-size: 14px; color: var(--muted); font-style: italic; }
 .item .rank-progress {
@@ -331,7 +331,7 @@ h1.display .punct, .display-name .punct { color: var(--dust-red); }
 }
 .emblem .em-num {
   position: relative; z-index: 2;
-  font-family: 'Rye', 'Bitter', serif; font-size: 22px; font-weight: 400;
+  font-family: 'Bitter', Georgia, serif; font-size: 22px; font-weight: 400;
   color: var(--muted);
 }
 .emblem .em-icon {
@@ -347,10 +347,10 @@ h1.display .punct, .display-name .punct { color: var(--dust-red); }
   display: flex; align-items: center; justify-content: center;
 }
 .badge-tile .badge-name {
-  font-family: 'Rye', 'Bitter', serif; font-size: 12px; font-weight: 400;
-  letter-spacing: 0.5px; color: var(--text);
+  font-family: 'Bitter', Georgia, serif; font-size: 13px; font-weight: 600;
+  letter-spacing: 0; color: var(--text);
   line-height: 1.3; margin-bottom: 8px; min-height: 32px;
-  display: flex; align-items: center; text-transform: uppercase;
+  display: flex; align-items: center; text-transform: none;
 }
 .badge-tile .badge-status {
   font-family: 'Bitter', serif;
@@ -466,7 +466,7 @@ select option { background: var(--wood-card); color: var(--text); }
 /* ===== Buttons = brass plates ===== */
 button {
   cursor: pointer;
-  font-family: 'Rye', 'Bitter', serif;
+  font-family: 'Bitter', Georgia, serif;
   border-radius: 3px;
   border: 1px solid var(--brass-dark);
   padding: 9px 20px;
@@ -540,7 +540,7 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
 .avatar {
   width: 48px; height: 48px; flex-shrink: 0;
   display: flex; align-items: center; justify-content: center;
-  font-family: 'Rye', 'Bitter', serif; font-weight: 400; font-size: 18px;
+  font-family: 'Bitter', Georgia, serif; font-weight: 400; font-size: 18px;
   color: var(--brass-stamp);
   background: linear-gradient(135deg, var(--brass-light), #8a5a2c);
   border: 1px solid var(--brass-dark);
@@ -570,9 +570,9 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 .loading-wrap .msg {
-  font-family: 'Rye', 'Bitter', serif;
-  letter-spacing: 0.6px; font-size: 14px;
-  color: var(--brass-soft); text-transform: uppercase;
+  font-family: 'Bitter', Georgia, serif;
+  letter-spacing: 0; font-size: 14px;
+  color: var(--brass-soft); text-transform: none; font-style: italic;
 }
 
 /* ===== Modals ===== */
@@ -596,9 +596,9 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
 .modal-head { padding: 26px 36px 20px; border-bottom: 1px solid var(--hairline-soft); }
 .modal-head .eyebrow { margin-bottom: 10px; }
 .modal-head h3 {
-  font-family: 'Rye', 'Bitter', serif; font-size: 24px; font-weight: 400;
+  font-family: 'Bitter', Georgia, serif; font-size: 24px; font-weight: 700;
   line-height: 1.2; margin: 0; color: var(--text-strong);
-  letter-spacing: 0.4px; text-shadow: var(--etch); text-transform: uppercase;
+  letter-spacing: -0.1px; text-shadow: var(--etch); text-transform: none;
 }
 .modal-head .desc { font-family: 'Bitter', serif; color: var(--muted); font-size: 15px; margin-top: 10px; font-style: italic; }
 .modal-body { padding: 24px 36px; }
@@ -621,7 +621,7 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
 /* ===== Req lists ===== */
 .req-section { margin-bottom: 22px; }
 .req-section h4 {
-  font-family: 'Rye', 'Bitter', serif;
+  font-family: 'Bitter', Georgia, serif;
   font-size: 12px; letter-spacing: 0.6px; text-transform: uppercase;
   color: var(--brass-soft); margin: 0 0 12px; font-weight: 400;
   display: flex; align-items: center; gap: 10px;
@@ -639,7 +639,7 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
 .req-list li::before {
   content: counter(req, decimal-leading-zero);
   position: absolute; left: 0; top: 12px;
-  font-family: 'Rye', 'Bitter', serif;
+  font-family: 'Bitter', Georgia, serif;
   font-size: 14px; color: var(--brass); font-weight: 400;
 }
 
@@ -660,9 +660,9 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
   color: var(--brass-soft); margin-bottom: 8px; font-weight: 600;
 }
 .signoff-card .who {
-  font-family: 'Rye', 'Bitter', serif; font-size: 20px; font-weight: 400;
+  font-family: 'Bitter', Georgia, serif; font-size: 19px; font-weight: 700;
   color: var(--text-strong); margin-bottom: 4px;
-  text-shadow: var(--etch); text-transform: uppercase;
+  text-shadow: var(--etch); text-transform: none;
 }
 .signoff-card .when { font-family: 'Bitter', serif; font-size: 13px; color: var(--muted); font-style: italic; }
 .signoff-card .notes {
@@ -753,9 +753,9 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
   text-transform: none;
 }
 .cel-text .cel-name {
-  font-family: 'Rye', 'Bitter', serif; font-size: 32px; font-weight: 400;
+  font-family: 'Bitter', Georgia, serif; font-size: 32px; font-weight: 700;
   color: var(--text-strong); text-shadow: var(--etch);
-  letter-spacing: 0.5px; text-transform: uppercase;
+  letter-spacing: -0.2px; text-transform: none;
 }
 .cel-text .cel-by { font-family: 'Bitter', serif; font-size: 15px; color: var(--muted); margin-top: 10px; font-style: italic; text-transform: none; }
 @media (max-width: 640px) { .cel-text .cel-name { font-size: 24px; } .cel-badge { width: 120px; height: 120px; } }
@@ -790,8 +790,8 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
   padding: 12px 18px; margin-bottom: 16px;
 }
 .bulk-bar span {
-  font-family: 'Rye', 'Bitter', serif; font-size: 13px; letter-spacing: 0.4px;
-  color: var(--brass-soft); text-transform: uppercase;
+  font-family: 'Bitter', Georgia, serif; font-size: 14px; letter-spacing: 0;
+  color: var(--brass-soft); text-transform: none; font-style: italic;
 }
 .bulk-bar button { border-color: var(--brass); color: var(--brass-soft); }
 .bulk-bar button:hover { background: var(--brass); color: var(--brass-stamp); }
@@ -1517,7 +1517,7 @@ function meritNodeSVG(x, y, badge, earned, rankId) {
   const tcol = earned ? "#ffeebd" : "#b3d4de";
   let label = "";
   cWrapLabel(badge.name).forEach((ln, k) => {
-    label += `<text x="${x}" y="${y + 42 + k * 14}" text-anchor="middle" font-family="Rye, Bitter, serif" font-size="10" letter-spacing="0.4" fill="${tcol}">${escapeHtml(ln.toUpperCase())}</text>`;
+    label += `<text x="${x}" y="${y + 42 + k * 14}" text-anchor="middle" font-family="Bitter, Georgia, serif" font-size="10" letter-spacing="0.4" fill="${tcol}">${escapeHtml(ln.toUpperCase())}</text>`;
   });
   return `<g class="cnode${earned ? " earned" : ""}" data-rank="${rankId}" data-badge="${badge.id}">`
     + `<circle class="cnode-halo" cx="${x}" cy="${y}" r="30" fill="${ring}" opacity="${earned ? 0.6 : 0}" style="${earned ? "filter:blur(6px)" : ""}"/>`
@@ -1533,8 +1533,8 @@ function rankStationSVG(x, y, num, complete, name) {
   function hex(cx, cy, r) { let p = ""; for (let k = 0; k < 6; k++) { const a = Math.PI / 180 * (60 * k - 90); p += (k ? "L" : "M") + (cx + r * Math.cos(a)).toFixed(1) + " " + (cy + r * Math.sin(a)).toFixed(1) + " "; } return p + "Z"; }
   return `<g>`
     + `<path d="${hex(x, y, 22)}" fill="rgba(8,14,22,0.95)" stroke="${stroke}" stroke-width="2.5"/>`
-    + `<text x="${x}" y="${y + 6}" text-anchor="middle" font-family="Rye, Bitter, serif" font-weight="900" font-size="17" fill="${complete ? "#8ba85b" : "#f0c986"}">${num}</text>`
-    + `<text x="${x}" y="${y + 46}" text-anchor="middle" font-family="Rye, Bitter, serif" font-size="9.5" letter-spacing="1.5" fill="#c6a880">${escapeHtml(String(name || "").toUpperCase())}</text>`
+    + `<text x="${x}" y="${y + 6}" text-anchor="middle" font-family="Bitter, Georgia, serif" font-weight="900" font-size="17" fill="${complete ? "#8ba85b" : "#f0c986"}">${num}</text>`
+    + `<text x="${x}" y="${y + 46}" text-anchor="middle" font-family="Bitter, Georgia, serif" font-size="9.5" letter-spacing="1.5" fill="#c6a880">${escapeHtml(String(name || "").toUpperCase())}</text>`
     + `</g>`;
 }
 function capstoneSVG(x, y, done) {
@@ -1547,7 +1547,7 @@ function capstoneSVG(x, y, done) {
   return `<g>`
     + (done ? `<circle cx="${x}" cy="${y}" r="42" fill="rgba(200,132,61,0.5)" opacity="0.5" style="filter:blur(9px)"/>` : "")
     + `<path d="${star}" fill="${fill}" stroke="${stroke}" stroke-width="2.5"/>`
-    + `<text x="${x}" y="${y - 46}" text-anchor="middle" font-family="Rye, Bitter, serif" font-weight="700" font-size="13" letter-spacing="2" fill="${txt}">LEAD READY</text>`
+    + `<text x="${x}" y="${y - 46}" text-anchor="middle" font-family="Bitter, Georgia, serif" font-weight="700" font-size="13" letter-spacing="2" fill="${txt}">LEAD READY</text>`
     + `</g>`;
 }
 
@@ -2029,13 +2029,13 @@ function makeWinCard(name, date, user) {
     ctx.save(); ctx.shadowColor = "rgba(212,162,86,0.85)"; ctx.shadowBlur = 45;
     ctx.drawImage(img, (S - lw) / 2, S * 0.15, lw, lh); ctx.restore();
     ctx.textAlign = "center";
-    ctx.fillStyle = "#d4a256"; ctx.font = "600 32px Rye, Bitter, serif";
+    ctx.fillStyle = "#d4a256"; ctx.font = "600 32px Bitter, Georgia, serif";
     ctx.fillText("MERIT EARNED", S / 2, S * 0.61);
-    ctx.fillStyle = "#ffeebd"; ctx.font = "900 60px Rye, Bitter, serif";
+    ctx.fillStyle = "#ffeebd"; ctx.font = "900 60px Bitter, Georgia, serif";
     cvWrap(ctx, String(name).toUpperCase(), S / 2, S * 0.69, S * 0.84, 66);
     ctx.fillStyle = "#f0c986"; ctx.font = "600 28px Lora, Arial, sans-serif";
     ctx.fillText(String(user || "").toUpperCase() + (date ? "   ·   " + formatDate(date) : ""), S / 2, S * 0.85);
-    ctx.fillStyle = "#b89875"; ctx.font = "600 22px Rye, Bitter, serif";
+    ctx.fillStyle = "#b89875"; ctx.font = "600 22px Bitter, Georgia, serif";
     ctx.fillText("HOMESTEAD ELECTRIC · FIELD MANUAL", S / 2, S * 0.93);
     cv.toBlob(function (blob) {
       const url = URL.createObjectURL(blob);
