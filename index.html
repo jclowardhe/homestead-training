@@ -880,6 +880,21 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
   .brand-logo   { height: 50px; }
 }
 
+/* ===== Reorder ↑↓ stack (edit mode) ===== */
+.reorder {
+  display: flex; flex-direction: column; gap: 4px; flex-shrink: 0;
+}
+.reorder button {
+  padding: 2px 8px; font-size: 13px; line-height: 1.1;
+  min-width: 30px; letter-spacing: 0;
+  font-family: 'Bitter', Georgia, serif;
+  text-transform: none;
+}
+.reorder-tile {
+  position: absolute; top: 8px; right: 10px;
+}
+.reorder-tile button { min-width: 24px; padding: 1px 5px; font-size: 11px; }
+
 /* ===== Add-row dashed ===== */
 .add-row {
   border: 1px dashed var(--hairline);
@@ -1428,6 +1443,12 @@ function renderProgressHome(userData, foremanView) {
           <div class="rank-progress">${inRank} of ${totalInRank} merits · ${rankPct}%</div>
           <div class="progress-line"><div class="fill" style="width:${rankPct}%"></div></div>
         </div>
+        ${editMode ? `
+          <div class="reorder" onclick="event.stopPropagation()">
+            <button class="ghost" onclick="event.stopPropagation();moveRank('${rank.id}','up')" ${idx === 0 ? "disabled" : ""} title="Move up">↑</button>
+            <button class="ghost" onclick="event.stopPropagation();moveRank('${rank.id}','down')" ${idx === curriculum.ranks.length - 1 ? "disabled" : ""} title="Move down">↓</button>
+          </div>
+        ` : ""}
         <div class="arrow">▶</div>
       `;
       li.addEventListener("click", () => { view = { name: "rank", rankId: rank.id }; window.scrollTo(0, 0); render(); });
@@ -1610,6 +1631,12 @@ function renderRankView(userData, rankId, foremanView) {
       <div class="badge-name">${escapeHtml(badge.name)}</div>
       <div class="badge-status">${earned ? "Earned · " + formatDate(earned.date) : (badge.reqs || []).length + " Reqs"}</div>
       ${selectable ? '<div class="bulk-check">' + (selected ? "✓" : "") + '</div>' : ''}
+      ${editMode ? `
+        <div class="reorder reorder-tile" onclick="event.stopPropagation()">
+          <button class="ghost" onclick="event.stopPropagation();moveBadgeWithin('${rank.id}','${badge.id}','up')" ${bidx === 0 ? "disabled" : ""} title="Move up">↑</button>
+          <button class="ghost" onclick="event.stopPropagation();moveBadgeWithin('${rank.id}','${badge.id}','down')" ${bidx === rank.badges.length - 1 ? "disabled" : ""} title="Move down">↓</button>
+        </div>
+      ` : ""}
     `;
     tile.addEventListener("click", () => {
       if (selectable) toggleBulkSel(badge.id);
@@ -1693,6 +1720,15 @@ function openBadge(userData, rankId, badgeId, foremanView) {
           ? '<textarea id="bReqs" rows="6" placeholder="One requirement per line">' + escapeHtml((badge.reqs || []).join("\n")) + '</textarea>'
           : '<ol class="req-list">' + (badge.reqs || []).map(r => '<li>' + escapeHtml(r) + '</li>').join("") + '</ol>'}
       </div>
+      ${editMode && curriculum.ranks.length > 1 ? `
+        <div class="req-section">
+          <h4>Move to a different rank</h4>
+          <select id="bMoveTo" onchange="if (this.value !== '${rankId}') moveBadge('${rankId}', '${badgeId}', this.value)">
+            ${curriculum.ranks.map(r => `<option value="${r.id}" ${r.id === rankId ? "selected" : ""}>${escapeHtml(r.name)}</option>`).join("")}
+          </select>
+          <p class="locked-note" style="margin-top:8px">Picking a different rank moves this merit immediately. Save unsaved name/description edits first.</p>
+        </div>
+      ` : ""}
       ${editMode ? "" : (earned ? `
         <div class="req-section">
           <h4>Sign-Off</h4>
@@ -1815,6 +1851,37 @@ function addRank() {
   const newId = "rank-" + Math.random().toString(36).slice(2, 9);
   curriculum.ranks.push({ id: newId, name: "New Rank", subtitle: "Describe this rank", badges: [] });
   saveCurriculum().then(() => { editRank(newId); });
+}
+
+/* ---------- Move / reorder ---------- */
+function moveBadge(srcRankId, badgeId, dstRankId) {
+  if (!srcRankId || !dstRankId || srcRankId === dstRankId) return;
+  const src = curriculum.ranks.find(r => r.id === srcRankId);
+  const dst = curriculum.ranks.find(r => r.id === dstRankId);
+  if (!src || !dst) return;
+  const i = src.badges.findIndex(b => b.id === badgeId);
+  if (i < 0) return;
+  const [badge] = src.badges.splice(i, 1);
+  dst.badges.push(badge);
+  saveCurriculum().then(() => { closeModal(); view = { name: "rank", id: dstRankId }; render(); });
+}
+function moveBadgeWithin(rankId, badgeId, dir) {
+  const rank = curriculum.ranks.find(r => r.id === rankId);
+  if (!rank) return;
+  const i = rank.badges.findIndex(b => b.id === badgeId);
+  if (i < 0) return;
+  const j = i + (dir === "up" ? -1 : 1);
+  if (j < 0 || j >= rank.badges.length) return;
+  const tmp = rank.badges[i]; rank.badges[i] = rank.badges[j]; rank.badges[j] = tmp;
+  saveCurriculum().then(() => { render(); });
+}
+function moveRank(rankId, dir) {
+  const i = curriculum.ranks.findIndex(r => r.id === rankId);
+  if (i < 0) return;
+  const j = i + (dir === "up" ? -1 : 1);
+  if (j < 0 || j >= curriculum.ranks.length) return;
+  const tmp = curriculum.ranks[i]; curriculum.ranks[i] = curriculum.ranks[j]; curriculum.ranks[j] = tmp;
+  saveCurriculum().then(() => { render(); });
 }
 
 /* ---------- Weekly digest (in-app, last 7 days) ---------- */
@@ -2185,6 +2252,7 @@ window.closeModal = closeModal; window.signOff = signOff; window.revokeBadge = r
 window.saveBadgeEdits = saveBadgeEdits; window.deleteBadge = deleteBadge; window.addBadge = addBadge;
 window.editRank = editRank; window.saveRankEdits = saveRankEdits; window.deleteRank = deleteRank;
 window.addRank = addRank; window.setRole = setRole; window.testFX = testFX; window.setProgressView = setProgressView; window.shareWin = shareWin;
+window.moveBadge = moveBadge; window.moveBadgeWithin = moveBadgeWithin; window.moveRank = moveRank;
 window.setRosterFilter = setRosterFilter; window.assignMentorSelf = assignMentorSelf; window.unassignMentor = unassignMentor; window.postFeedback = postFeedback;
 window.toggleBulk = toggleBulk; window.toggleBulkSel = toggleBulkSel; window.openBulkSignoff = openBulkSignoff; window.bulkSignOff = bulkSignOff;
 window.openDigest = openDigest; window.toggleLeadCrew = toggleLeadCrew;
