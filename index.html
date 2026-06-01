@@ -859,52 +859,156 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
   position: relative; z-index: 1; margin-bottom: 22px;
   transform: scale(0); animation: lhIn .8s cubic-bezier(.18,.9,.24,1.1) forwards;
 }
+/* Brass-halo sunburst behind the longhorn — pulses with the fanfare */
+.cel-longhorn-wrap::before {
+  content: ""; position: absolute; inset: -22% -10%;
+  background:
+    radial-gradient(circle at 50% 55%, rgba(232,176,98,0.55), rgba(232,176,98,0.16) 35%, transparent 65%),
+    conic-gradient(from 0deg, rgba(212,162,86,0.18), transparent 12%, rgba(212,162,86,0.22) 25%, transparent 38%, rgba(212,162,86,0.18) 50%, transparent 62%, rgba(212,162,86,0.22) 75%, transparent 88%);
+  filter: blur(2px);
+  z-index: -1; pointer-events: none;
+  opacity: 0;
+  animation: lhHalo 4.2s ease-in-out .35s 1 forwards;
+  transform-origin: 50% 55%;
+}
 .cel-longhorn {
   width: 380px; max-width: 78vw; display: block;
-  filter: sepia(0.55) saturate(1.2) brightness(0.92) drop-shadow(0 6px 14px rgba(0,0,0,0.7));
-  /*
-    Sequence:
-      .72s –  2.1s : ring shimmy (bob + tilt + horizontal sway, synced with bell)
-      2.1s – 4.0s  : slow breath cycles (continuous gentle scale)
-      4.0s – 4.6s  : tip-of-the-hat final rotation as the overlay fades
-  */
+  filter:
+    brightness(1.05) saturate(1.05) contrast(1.05)
+    drop-shadow(0 0 30px rgba(232,176,98,0.6))
+    drop-shadow(0 6px 16px rgba(0,0,0,0.75));
   animation:
-    lhRingShimmy 1.4s cubic-bezier(.32,.72,.36,1) .72s 1 both,
-    lhBreath 1.6s ease-in-out 2.1s 2 both,
-    lhTip .6s cubic-bezier(.4,.0,.4,1.2) 4.0s 1 both;
-  transform-origin: 50% 70%;
+    lhStomp 1.5s cubic-bezier(.34,.06,.18,1.04) .72s 1 both,
+    lhSwagger 1.4s ease-in-out 2.2s 2 both,
+    lhRearUp .8s cubic-bezier(.3,1.4,.4,1.0) 3.7s 1 both;
+  transform-origin: 50% 75%;
 }
 @keyframes lhIn {
-  0% { transform: scale(0) rotate(-8deg); }
-  60% { transform: scale(1.07) rotate(2deg); }
+  0%   { transform: scale(0) rotate(-12deg); }
+  55%  { transform: scale(1.12) rotate(4deg); }
+  78%  { transform: scale(0.96) rotate(-2deg); }
   100% { transform: scale(1) rotate(0); }
 }
-@keyframes lhRingShimmy {
-  /* Mallet strike at 0%: a quick bob + tilt + sway. Rings out as it decays. */
-  0%   { transform: translate(0, 0) rotate(0deg); }
-  8%   { transform: translate(-3px, 5px) rotate(-2.4deg); }
-  18%  { transform: translate(4px, 3px) rotate(2deg); }
-  30%  { transform: translate(-2px, 1px) rotate(-1.4deg); }
-  44%  { transform: translate(2px, -1px) rotate(1deg); }
-  58%  { transform: translate(-1px, 0px) rotate(-0.6deg); }
-  72%  { transform: translate(1px, -1px) rotate(0.4deg); }
-  85%  { transform: translate(0, 0) rotate(-0.2deg); }
-  100% { transform: translate(0, 0) rotate(0deg); }
+/* Stomp/snort sequence: hits hard with the fanfare's first note, then settles */
+@keyframes lhStomp {
+  0%   { transform: translate(0, 0) rotate(0); }
+  6%   { transform: translate(-6px, 9px) rotate(-4deg); }
+  14%  { transform: translate(7px, 4px) rotate(3.5deg); }
+  22%  { transform: translate(-5px, 7px) rotate(-2.5deg); }
+  32%  { transform: translate(4px, 2px) rotate(2deg); }
+  44%  { transform: translate(-3px, 4px) rotate(-1.3deg); }
+  56%  { transform: translate(2px, 0px) rotate(0.8deg); }
+  70%  { transform: translate(-1px, 1px) rotate(-0.4deg); }
+  85%  { transform: translate(1px, 0) rotate(0.2deg); }
+  100% { transform: translate(0, 0) rotate(0); }
 }
-@keyframes lhBreath {
-  0%, 100% { transform: scale(1); }
-  50%      { transform: scale(1.025); }
+/* Swagger: side-to-side sway with rotation — like the longhorn is showing off */
+@keyframes lhSwagger {
+  0%   { transform: translateX(0) rotate(0) scale(1); }
+  25%  { transform: translateX(-9px) rotate(-3.5deg) scale(1.015); }
+  50%  { transform: translateX(0) rotate(0) scale(1.03); }
+  75%  { transform: translateX(9px) rotate(3.5deg) scale(1.015); }
+  100% { transform: translateX(0) rotate(0) scale(1); }
 }
-@keyframes lhTip {
-  0%   { transform: rotate(0deg) translateY(0); }
-  55%  { transform: rotate(-8deg) translateY(-3px); }
-  100% { transform: rotate(0deg) translateY(0); }
+/* Rear-up finale: a big rotation and scale-up before the overlay fades */
+@keyframes lhRearUp {
+  0%   { transform: rotate(0) scale(1) translateY(0); }
+  40%  { transform: rotate(-14deg) scale(1.13) translateY(-12px); }
+  70%  { transform: rotate(-8deg)  scale(1.10) translateY(-9px); }
+  100% { transform: rotate(0) scale(1) translateY(0); }
+}
+/* Halo: fades up with the entrance, breathes brighter on the fanfare's peak, fades back */
+@keyframes lhHalo {
+  0%   { opacity: 0; transform: rotate(0) scale(0.6); }
+  20%  { opacity: 0.7; transform: rotate(40deg) scale(0.95); }
+  45%  { opacity: 1.0; transform: rotate(120deg) scale(1.05); }
+  72%  { opacity: 0.8; transform: rotate(220deg) scale(1.0); }
+  100% { opacity: 0; transform: rotate(360deg) scale(1.1); }
 }
 @media (max-width: 640px) {
   .cel-longhorn { width: 260px; }
   .auth-logo    { width: 250px; }
   .brand-logo   { height: 50px; }
 }
+
+/* ===== Phase distinction: Rough-In vs Finish & Trim ===== */
+.phase-header {
+  list-style: none;
+  margin: 24px 0 14px;
+  padding: 14px 22px;
+  display: flex; align-items: center; gap: 18px;
+  font-family: 'Rye', 'Bitter', Georgia, serif;
+  font-size: 18px; letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--text-strong);
+  background:
+    repeating-linear-gradient(90deg, rgba(15,8,4,0.4) 0 1px, transparent 1px 96px),
+    linear-gradient(180deg, rgba(74,48,36,0.6), rgba(34,22,16,0.6));
+  border-top: 2px solid var(--brass-dark);
+  border-bottom: 2px solid var(--brass-dark);
+  text-shadow: 0 1px 0 rgba(0,0,0,0.75), 0 0 18px rgba(212,162,86,0.35);
+  box-shadow: inset 0 1px 0 rgba(255,235,200,0.10), inset 0 -1px 0 rgba(255,235,200,0.06);
+  position: relative;
+}
+.phase-header::before, .phase-header::after {
+  content: ""; flex: 1; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--brass), transparent);
+}
+.phase-header.phase-rough { color: var(--brass-soft); }
+.phase-header.phase-finish {
+  color: #f6e1c4;
+  background:
+    repeating-linear-gradient(90deg, rgba(110,36,36,0.18) 0 1px, transparent 1px 96px),
+    linear-gradient(180deg, rgba(110,36,36,0.55), rgba(58,16,16,0.55));
+  border-color: var(--oxblood);
+  text-shadow: 0 1px 0 rgba(0,0,0,0.75), 0 0 18px rgba(166,74,58,0.45);
+}
+.phase-header.phase-finish::before, .phase-header.phase-finish::after {
+  background: linear-gradient(90deg, transparent, var(--dust-red), transparent);
+}
+.phase-header .phase-rule { display: none; }
+
+/* Finish cards: parchment on wood — like a work order pinned to the wall */
+.item.phase-finish {
+  background:
+    var(--rivet),
+    linear-gradient(180deg, #f4e3c4, #e7d3ac);
+  background-repeat: no-repeat;
+  border-color: var(--oxblood);
+  color: #3a2418;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.4),
+    0 3px 6px rgba(0,0,0,0.55),
+    0 0 0 1px rgba(110,36,36,0.25);
+}
+.item.phase-finish::before { background: var(--oxblood); }
+.item.phase-finish .num { color: var(--oxblood); text-shadow: 0 1px 0 rgba(255,255,255,0.35); }
+.item.phase-finish .title { color: #2a1208; }
+.item.phase-finish .sub { color: #6b4820; }
+.item.phase-finish .rank-progress { color: #8a3a2c; }
+.item.phase-finish .arrow { color: var(--oxblood); }
+.item.phase-finish .progress-line {
+  background: rgba(110,36,36,0.18); border-color: rgba(110,36,36,0.4);
+}
+.item.phase-finish .progress-line .fill {
+  background: linear-gradient(90deg, #3a1010, var(--oxblood), var(--dust-red));
+}
+.item.phase-finish:hover {
+  border-color: var(--dust-red);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.5),
+    0 8px 16px -6px rgba(0,0,0,0.7),
+    0 0 0 1px rgba(166,74,58,0.4);
+}
+.item.phase-finish.complete-rank::before { background: var(--olive); }
+.item.phase-finish.complete-rank .num    { color: #4a6320; }
+
+/* When a Finish rank is open, tint the hero strip too */
+.rank-hero.phase-finish {
+  border-bottom-color: var(--oxblood);
+}
+.rank-hero.phase-finish h1.display .punct,
+.rank-hero.phase-finish .display-name .punct { color: var(--dust-red); }
 
 /* ===== Reorder ↑↓ stack (edit mode) ===== */
 .reorder {
@@ -1453,13 +1557,23 @@ function renderProgressHome(userData, foremanView) {
   } else {
     const list = document.createElement("ul");
     list.className = "item-list";
+    let prevPhase = null;
     curriculum.ranks.forEach((rank, idx) => {
+      const phase = rankPhase(rank);
+      if (phase && phase !== prevPhase) {
+        const header = document.createElement("li");
+        header.className = "phase-header phase-" + phase;
+        header.innerHTML = (phase === "rough" ? "Rough-In" : "Finish &amp; Trim")
+          + '<span class="phase-rule"></span>';
+        list.appendChild(header);
+        prevPhase = phase;
+      }
       const inRank = rank.badges.filter(b => earnedMap[b.id]).length;
       const totalInRank = rank.badges.length;
       const rankPct = totalInRank ? Math.round((inRank / totalInRank) * 100) : 0;
       const complete = totalInRank > 0 && inRank === totalInRank;
       const li = document.createElement("li");
-      li.className = "item rise" + (complete ? " complete-rank" : "");
+      li.className = "item rise" + (complete ? " complete-rank" : "") + (phase ? " phase-" + phase : "");
       li.style.animationDelay = (idx * 0.07) + "s";
       li.innerHTML = `
         <div class="num">${String(idx + 1).padStart(2, "0")}</div>
@@ -1627,7 +1741,7 @@ function renderRankView(userData, rankId, foremanView) {
   C().innerHTML = `
     ${topBar()}
     <button class="back-link" onclick="backToHome()">Back to ranks</button>
-    <div class="rank-hero">
+    <div class="rank-hero ${rankPhase(rank) ? 'phase-' + rankPhase(rank) : ''}">
       <div class="eyebrow"><span>Rank ${String(idx + 1).padStart(2, "0")}</span><span class="sep">·</span><span class="sub">${inRank} / ${totalInRank} online</span></div>
       <h1 class="display">${escapeHtml(rank.name)}<span class="punct">.</span></h1>
       <p class="subhead">${escapeHtml(rank.subtitle || "")}${foremanView ? " · " + escapeHtml(userData.name || "") : ""}</p>
@@ -2031,6 +2145,12 @@ function backToRoster() {
 function backToHome() { bulkMode = false; bulkSel = {}; view = { name: "home" }; window.scrollTo(0, 0); render(); }
 
 /* ---------- Helpers ---------- */
+function rankPhase(rank) {
+  const n = String(rank && rank.name || "").toLowerCase();
+  if (/\brough\b/.test(n)) return "rough";
+  if (/\bfinish\b/.test(n) || /\btrim\b/.test(n)) return "finish";
+  return "";
+}
 function computeCurrentRank(earnedMap) {
   for (const rank of curriculum.ranks) {
     const all = rank.badges.length > 0 && rank.badges.every(b => earnedMap[b.id]);
@@ -2245,44 +2365,73 @@ function runSparks(canvas) {
   tick();
 }
 function playZap() {
-  /* Brass-bell chime: brief mallet strike + three sine partials. */
+  /*
+    Triumphant fanfare:
+      Note 1: C5  (mallet strike + bell partials)
+      Note 2: E5  (80ms later)
+      Note 3: G5  (160ms later)
+      Note 4: C6  (260ms later — final big chord with overtones)
+    Each note layers a triangle "horn" body + sine partials so it reads as
+    brass-bell-meets-bugle. Ends in a sustained ringing chord.
+  */
   try {
     const AC = window.AudioContext || window.webkitAudioContext;
     if (!AC) return;
     const ctx = new AC();
-    const now = ctx.currentTime;
+    const t0 = ctx.currentTime;
 
-    // Mallet strike — brief high-to-mid triangle click
-    const strike = ctx.createOscillator();
-    const strikeGain = ctx.createGain();
-    strike.type = "triangle";
-    strike.frequency.setValueAtTime(2200, now);
-    strike.frequency.exponentialRampToValueAtTime(820, now + 0.04);
-    strikeGain.gain.setValueAtTime(0.0001, now);
-    strikeGain.gain.linearRampToValueAtTime(0.07, now + 0.003);
-    strikeGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.07);
-    strike.connect(strikeGain); strikeGain.connect(ctx.destination);
-    strike.start(now); strike.stop(now + 0.08);
+    // Master compressor-like gain to prevent clipping when notes stack
+    const master = ctx.createGain();
+    master.gain.value = 0.55;
+    master.connect(ctx.destination);
 
-    // Bell body — three sine partials (fundamental + fifth + octave)
-    const partials = [
-      { freq: 660,  gain: 0.16, dur: 1.4 },
-      { freq: 988,  gain: 0.09, dur: 1.2 },
-      { freq: 1320, gain: 0.05, dur: 0.9 }
-    ];
-    partials.forEach(p => {
-      const osc = ctx.createOscillator();
-      const g = ctx.createGain();
-      osc.type = "sine";
-      osc.frequency.setValueAtTime(p.freq, now);
-      g.gain.setValueAtTime(0.0001, now);
-      g.gain.linearRampToValueAtTime(p.gain, now + 0.015);
-      g.gain.exponentialRampToValueAtTime(0.0001, now + p.dur);
-      osc.connect(g); g.connect(ctx.destination);
-      osc.start(now); osc.stop(now + p.dur + 0.05);
-    });
+    function note(freq, when, dur, peakGain, withStrike) {
+      // optional mallet strike (high-to-low triangle click)
+      if (withStrike) {
+        const s = ctx.createOscillator();
+        const sg = ctx.createGain();
+        s.type = "triangle";
+        s.frequency.setValueAtTime(freq * 3.2, when);
+        s.frequency.exponentialRampToValueAtTime(freq * 1.2, when + 0.035);
+        sg.gain.setValueAtTime(0.0001, when);
+        sg.gain.linearRampToValueAtTime(0.06, when + 0.003);
+        sg.gain.exponentialRampToValueAtTime(0.0001, when + 0.06);
+        s.connect(sg); sg.connect(master);
+        s.start(when); s.stop(when + 0.08);
+      }
+      // Horn body: triangle wave (warmer + brassier than sine)
+      const horn = ctx.createOscillator();
+      const hg = ctx.createGain();
+      horn.type = "triangle";
+      horn.frequency.setValueAtTime(freq, when);
+      hg.gain.setValueAtTime(0.0001, when);
+      hg.gain.linearRampToValueAtTime(peakGain, when + 0.012);
+      hg.gain.exponentialRampToValueAtTime(peakGain * 0.4, when + 0.25);
+      hg.gain.exponentialRampToValueAtTime(0.0001, when + dur);
+      horn.connect(hg); hg.connect(master);
+      horn.start(when); horn.stop(when + dur + 0.05);
+      // Sine partial (the bell "ring" overtone, one octave up)
+      const ot = ctx.createOscillator();
+      const og = ctx.createGain();
+      ot.type = "sine";
+      ot.frequency.setValueAtTime(freq * 2, when);
+      og.gain.setValueAtTime(0.0001, when);
+      og.gain.linearRampToValueAtTime(peakGain * 0.45, when + 0.02);
+      og.gain.exponentialRampToValueAtTime(0.0001, when + dur * 0.85);
+      ot.connect(og); og.connect(master);
+      ot.start(when); ot.stop(when + dur + 0.05);
+    }
 
-    setTimeout(() => ctx.close(), 1800);
+    // Ascending fanfare — C major triad arpeggio + octave top
+    note(523.25, t0 + 0.00, 1.4, 0.18, true);  // C5
+    note(659.25, t0 + 0.09, 1.4, 0.17, true);  // E5
+    note(783.99, t0 + 0.18, 1.5, 0.17, true);  // G5
+    note(1046.5, t0 + 0.30, 2.0, 0.20, true);  // C6  — sustained finale
+
+    // Add a fifth (G6) on the final chord for the ringing finish
+    note(1568.0, t0 + 0.32, 1.6, 0.12, false);
+
+    setTimeout(() => ctx.close(), 2400);
   } catch (e) {}
 }
 
