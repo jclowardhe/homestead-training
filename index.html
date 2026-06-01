@@ -1062,9 +1062,20 @@ let curriculumSubbed = false, rosterSubbed = false;
 let prevEarnedIds = null; // apprentice self celebration tracking
 
 const C = () => document.getElementById("container");
-function isForeman() { return profile && (profile.role === "foreman" || profile.role === "owner"); }
-function isOwner() { return !!me && me.email && me.email.toLowerCase() === OWNER_EMAIL; }
-function isLead() { return profile && profile.role === "lead"; }
+/* ---- DEV: view-as-apprentice toggle (persists in localStorage) ---- */
+let __devApprenticeView = (function () {
+  try { return localStorage.getItem("devApprenticeView") === "1"; } catch (e) { return false; }
+})();
+function __isRealOwner() { return !!me && me.email && me.email.toLowerCase() === OWNER_EMAIL; }
+window.toggleDevApprentice = function () {
+  __devApprenticeView = !__devApprenticeView;
+  try { localStorage.setItem("devApprenticeView", __devApprenticeView ? "1" : "0"); } catch (e) {}
+  location.reload();
+};
+
+function isForeman() { return !__devApprenticeView && profile && (profile.role === "foreman" || profile.role === "owner"); }
+function isOwner()   { return !__devApprenticeView && !!me && me.email && me.email.toLowerCase() === OWNER_EMAIL; }
+function isLead()    { return !__devApprenticeView && profile && profile.role === "lead"; }
 let leadCrewMode = false;
 
 /* ---------- Auth lifecycle ---------- */
@@ -1264,6 +1275,7 @@ function topBar() {
       ${isForeman() ? `<button class="ghost" onclick="toggleEdit()">${editMode ? "Done Editing" : "Edit Curriculum"}</button>` : ""}
       ${isForeman() ? `<button class="ghost" onclick="openAdmin()">Manage Crew</button>` : ""}
       ${isOwner() ? `<button class="ghost" onclick="testFX()">Test FX</button>` : ""}
+      ${__isRealOwner() ? `<button class="ghost" onclick="toggleDevApprentice()" title="Dev: simulate the apprentice experience">${__devApprenticeView ? "Back to Owner View" : "View as Apprentice"}</button>` : ""}
       <button class="ghost" onclick="doLogout()">Log Out</button>
     </div>
   `;
