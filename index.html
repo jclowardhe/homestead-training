@@ -3,7 +3,15 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Homestead Electric — Training Grid</title>
+<title>Homestead Electric — Field Manual</title>
+<meta name="description" content="Homestead Electric apprenticeship training, merit sign-offs, and crew progress." />
+<meta name="theme-color" content="#1c1208" />
+<meta property="og:type" content="website" />
+<meta property="og:title" content="Homestead Electric — Field Manual" />
+<meta property="og:description" content="Apprenticeship training, merit sign-offs, and crew progress for Homestead Electric." />
+<meta property="og:site_name" content="Homestead Electric" />
+<meta name="twitter:card" content="summary" />
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='14' fill='%23b8893a' stroke='%236b4820' stroke-width='1.5'/%3E%3Cpath d='M16 6.5l2.5 6.2 6.5.5-5 4.4 1.5 6.4L16 20.6l-5.5 3.4 1.5-6.4-5-4.4 6.5-.5z' fill='%231c1208'/%3E%3C/svg%3E" />
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Rye&family=Bitter:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,500&family=Lora:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
@@ -888,6 +896,10 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
   background: rgba(184,137,58,0.05);
 }
 
+@media (max-width: 768px) {
+  h1.display    { font-size: 32px; }
+  .display-name { font-size: 26px; }
+}
 @media (max-width: 640px) {
   h1.display    { font-size: 28px; }
   .display-name { font-size: 22px; }
@@ -925,7 +937,7 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
 
 <script>
 /* =========================================================================
-   Homestead Electric — Training Grid (connected / Firebase)
+   Homestead Electric — Field Manual (connected / Firebase)
    ========================================================================= */
 
 const firebaseConfig = {
@@ -1083,7 +1095,7 @@ auth.onAuthStateChanged((user) => {
   cleanup();
   me = user;
   if (!user) { profile = null; authMode = "login"; renderAuth(); return; }
-  renderLoading("Connecting to the grid…");
+  renderLoading("Connecting…");
   subscribeProfile(user.uid);
 });
 
@@ -1217,8 +1229,8 @@ function renderAuth() {
   C().innerHTML = `
     <div class="setup-wrap">
       <img class="auth-logo" src="${LOGO}" alt="Homestead Electric" />
-      <div class="eyebrow"><span>${signup ? "Create Account" : "Sign In"}</span><span class="sep">·</span><span class="sub">Residential Grid</span></div>
-      <h1 class="display">${signup ? "JOIN THE GRID" : "ENTER THE GRID"}<span class="punct">.</span></h1>
+      <div class="eyebrow"><span>${signup ? "Create Account" : "Sign In"}</span><span class="sep">·</span><span class="sub">Field Manual</span></div>
+      <h1 class="display">${signup ? "Join the Crew" : "Welcome Back"}<span class="punct">.</span></h1>
       <p class="subhead">${signup ? "Make your account to start earning merits. New members join as apprentices." : "Log in to see your progress and light up merits."}</p>
       <div class="setup-form">
         ${signup ? `
@@ -1312,7 +1324,7 @@ function renderRoster() {
     const pct = total ? Math.round((earned / total) * 100) : 0;
     const initials = (a.name || "?").split(/\s+/).map(s => s[0]).filter(Boolean).slice(0, 2).join("").toUpperCase();
     const mentorTag = a.mentorUid
-      ? (a.mentorUid === me.uid ? '<span class="role-tag">Mine</span>' : '<span class="role-tag" style="color:var(--muted);border-color:var(--line-soft)">' + escapeHtml(a.mentorName || "Mentored") + '</span>')
+      ? (a.mentorUid === me.uid ? '<span class="role-tag">Mine</span>' : '<span class="role-tag" style="color:var(--muted);border-color:var(--hairline-soft)">' + escapeHtml(a.mentorName || "Mentored") + '</span>')
       : '';
     const li = document.createElement("li");
     li.className = "item rise";
@@ -1375,11 +1387,11 @@ function renderProgressHome(userData, foremanView) {
     ${foremanView ? mentorControl(userData) : ''}
     <div class="stats-row">
       <div class="stat"><div class="stat-lbl">Merits Earned</div><div class="stat-val">${earnedCount}<span class="frac"> / ${total}</span></div></div>
-      <div class="stat"><div class="stat-lbl">Grid Charge</div><div class="stat-val">${pct}<span class="frac">%</span></div></div>
+      <div class="stat"><div class="stat-lbl">Progress</div><div class="stat-val">${pct}<span class="frac">%</span></div></div>
       <div class="stat"><div class="stat-lbl">Rank</div><div class="stat-val small">${escapeHtml(currentRank.name)}</div></div>
     </div>
     <div class="section-head">
-      <h2>${progressView === "map" ? "The Grid" : "Ranks"}</h2>
+      <h2>${progressView === "map" ? "The Trail" : "Ranks"}</h2>
       <span class="view-toggle">
         <button class="${progressView === "map" ? "active" : ""}" onclick="setProgressView('map')">Map</button>
         <button class="${progressView === "list" ? "active" : ""}" onclick="setProgressView('list')">List</button>
@@ -1389,7 +1401,7 @@ function renderProgressHome(userData, foremanView) {
     ${editMode && progressView === "list" ? '<button class="add-row" onclick="addRank()">+ Add a New Rank</button>' : ''}
     <div class="section-head" style="margin-top:30px"><h2>Feedback</h2></div>
     <div id="feedbackBox"></div>
-    <div class="status-bar"><span class="dot"></span><span>Live · Synced to the grid in real time</span></div>
+    <div class="status-bar"><span class="dot"></span><span>Live · Synced in real time</span></div>
   `;
   const body = document.getElementById("progressBody");
   if (progressView === "map") {
@@ -2184,7 +2196,7 @@ window.openDigest = openDigest; window.toggleLeadCrew = toggleLeadCrew;
 })();
 
 /* Boot: show a loader until auth resolves */
-renderLoading("Connecting to the grid…");
+renderLoading("Connecting…");
 </script>
 </body>
 </html>
