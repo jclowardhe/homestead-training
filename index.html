@@ -151,7 +151,7 @@ header.brand-bar {
 
 /* ===== Container ===== */
 .container {
-  max-width: 880px; margin: 0 auto;
+  max-width: 1120px; margin: 0 auto;
   padding: 40px 24px 90px;
   position: relative; z-index: 1;
 }
@@ -264,9 +264,10 @@ h1.display .punct, .display-name .punct { color: var(--dust-red); }
   box-shadow: inset 0 1px 0 rgba(255,235,200,0.08), 0 6px 14px -6px rgba(0,0,0,0.8);
 }
 .item .num {
-  font-family: 'Bitter', Georgia, serif; font-size: 24px; font-weight: 400;
-  color: var(--brass); min-width: 44px; flex-shrink: 0;
-  text-shadow: var(--etch);
+  font-family: 'Bitter', Georgia, serif; font-size: 17px; font-weight: 600;
+  color: var(--brass); min-width: 32px; flex-shrink: 0;
+  text-shadow: var(--etch); opacity: 0.85;
+  letter-spacing: 0.5px;
 }
 .item .body { flex: 1; min-width: 0; }
 .item .title {
@@ -846,7 +847,7 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
   background-repeat: no-repeat;
   background-position: center 56%;
   background-size: 520px;
-  opacity: 0.05; pointer-events: none; z-index: 0;
+  opacity: 0.018; pointer-events: none; z-index: 0;
   filter: sepia(0.7) brightness(0.8);
 }
 .auth-logo {
@@ -1009,6 +1010,36 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
 }
 .rank-hero.phase-finish h1.display .punct,
 .rank-hero.phase-finish .display-name .punct { color: var(--dust-red); }
+
+/* ===== Latest Activity feed on roster ===== */
+.activity-feed {
+  list-style: none; padding: 0; margin: 0 0 32px;
+  background: linear-gradient(180deg, var(--wood-card), var(--wood-card-2));
+  border: 1px solid var(--brass-dark);
+  border-radius: 6px;
+  box-shadow: inset 0 1px 0 rgba(255,235,200,0.05), 0 2px 4px rgba(0,0,0,0.45);
+  font-family: 'Bitter', Georgia, serif;
+}
+.activity-feed li {
+  display: flex; gap: 14px; align-items: baseline;
+  padding: 10px 18px;
+  border-top: 1px solid var(--hairline-soft);
+  font-size: 14px; line-height: 1.4;
+}
+.activity-feed li:first-child { border-top: none; }
+.activity-feed .af-time {
+  font-style: italic; color: var(--brass-soft);
+  font-size: 12px; min-width: 70px; flex-shrink: 0;
+}
+.activity-feed .af-text { color: var(--text); }
+.activity-feed .af-text strong { color: var(--text-strong); font-weight: 700; }
+.activity-feed .af-text em { color: var(--brass-light); font-style: italic; }
+.activity-feed .af-rank { color: var(--muted); font-style: italic; }
+.activity-feed .af-by { color: var(--muted); font-style: italic; margin-left: 4px; }
+@media (max-width: 640px) {
+  .activity-feed li { flex-direction: column; gap: 2px; padding: 10px 14px; }
+  .activity-feed .af-time { min-width: 0; }
+}
 
 /* ===== Reorder ↑↓ stack (edit mode) ===== */
 .reorder {
@@ -1376,7 +1407,7 @@ function renderAuth() {
       <img class="auth-logo" src="${LOGO}" alt="Homestead Electric" />
       <div class="eyebrow"><span>${signup ? "Create Account" : "Sign In"}</span><span class="sep">·</span><span class="sub">Field Manual</span></div>
       <h1 class="display">${signup ? "Join the Crew" : "Welcome Back"}<span class="punct">.</span></h1>
-      <p class="subhead">${signup ? "Make your account to start earning merits. New members join as apprentices." : "Log in to see your progress and light up merits."}</p>
+      <p class="subhead">${signup ? "Make your account to start earning merits. New members join as apprentices." : "Log in to see your progress and earn merits."}</p>
       <div class="setup-form">
         ${signup ? `
           <label for="aName">Full Name</label>
@@ -1451,12 +1482,27 @@ function renderRoster() {
     <div class="eyebrow"><span>${foreman ? "Foreman" : "Lead"}</span><span class="sep">·</span><span class="sub">${escapeHtml(profile.company || "Crew")}</span></div>
     <h1 class="display-name">THE CREW<span class="punct">.</span></h1>
     <p class="subhead" style="margin-top:8px">${foreman ? "Pick someone to view their progress and sign off merits." : "Pick someone to pass them off on merits you've earned."}</p>
+    <div id="latestActivityStrip"></div>
     <div class="section-head">
       <h2>Crew</h2>
       ${foreman ? `<span class="view-toggle"><button class="${showMine ? "active" : ""}" onclick="setRosterFilter('mine')">My Crew</button><button class="${!showMine ? "active" : ""}" onclick="setRosterFilter('all')">All</button></span>` : ""}
     </div>
     <ul class="item-list" id="rosterList"></ul>
   `;
+  (function () {
+    const strip = document.getElementById("latestActivityStrip");
+    if (!strip) return;
+    const recent = allSignoffs().filter(s => s.ts > 0).sort((a, b) => b.ts - a.ts).slice(0, 10);
+    if (!recent.length) return;
+    strip.innerHTML = '<div class="section-head" style="margin-bottom:10px"><h2>Latest Activity</h2><span class="meta">Across the crew</span></div>'
+      + '<ol class="activity-feed">' + recent.map(s =>
+        '<li><span class="af-time">' + timeAgo(s.ts) + '</span>'
+        + '<span class="af-text"><strong>' + escapeHtml(s.apprenticeName) + '</strong> earned <em>' + escapeHtml(s.badgeName) + '</em>'
+        + (s.rankName ? ' <span class="af-rank">· ' + escapeHtml(s.rankName) + '</span>' : '')
+        + (s.trainerName ? ' <span class="af-by">signed by ' + escapeHtml(s.trainerName) + '</span>' : '')
+        + '</span></li>'
+      ).join('') + '</ol>';
+  })();
   const list = document.getElementById("rosterList");
   if (!shown.length) {
     list.innerHTML = '<p class="subhead">' + (showMine
@@ -1659,18 +1705,23 @@ function buildConstellation(userData) {
   let y = topPad;
   ranks.forEach((rank, i) => {
     const rankY = y;
+    const phase = rankPhase(rank);
     const inRank = rank.badges.filter(b => earnedMap[b.id]).length;
     const rankComplete = rank.badges.length > 0 && inRank === rank.badges.length;
-    nodes += rankStationSVG(cx, rankY, i + 1, rankComplete, rank.name);
+    nodes += rankStationSVG(cx, rankY, i + 1, rankComplete, rank.name, phase);
     rank.badges.forEach((b, j) => {
       const my = rankY + (j + 1) * rowH;
       const side = (j % 2 === 0) ? -1 : 1;
       const mx = cx + side * branch;
       const earned = !!earnedMap[b.id];
       if (earned) earnedYs.push(my);
-      const tcol = earned ? "rgba(212,162,86,0.95)" : "rgba(212,162,86,0.40)";
+      const trunkCol = phase === "finish" ? "212,162,86" : "212,162,86"; // trunk stays brass
+      const branchCol = phase === "finish" ? "166,74,58" : "212,162,86";
+      const tcol = earned
+        ? `rgba(${branchCol},0.95)`
+        : `rgba(${branchCol},0.40)`;
       traces += `<path d="M ${cx} ${my} C ${cx + side * 72} ${my} ${mx - side * 52} ${my} ${mx} ${my}" fill="none" stroke="${tcol}" stroke-width="${earned ? 2.6 : 1.7}"/>`;
-      nodes += meritNodeSVG(mx, my, b, earned, rank.id);
+      nodes += meritNodeSVG(mx, my, b, earned, rank.id, phase);
     });
     y = rankY + (rank.badges.length + 1) * rowH;
   });
@@ -1682,12 +1733,15 @@ function buildConstellation(userData) {
   }
   return `<svg viewBox="0 0 ${W} ${H}" width="${W}" xmlns="http://www.w3.org/2000/svg">${trunk}${traces}${nodes}${capstoneSVG(cx, capY, allDone)}</svg>`;
 }
-function meritNodeSVG(x, y, badge, earned, rankId) {
-  const ring = earned ? "rgba(212,162,86,0.95)" : "rgba(212,162,86,0.6)";
-  const fill = earned ? "rgba(212,162,86,0.18)" : "rgba(14,26,40,0.92)";
-  const iconCol = earned ? "#f0c986" : "#9a8062";
+function meritNodeSVG(x, y, badge, earned, rankId, phase) {
+  const isFinish = phase === "finish";
+  const base = isFinish ? "166,74,58" : "212,162,86";
+  const ring = earned ? `rgba(${base},0.95)` : `rgba(${base},0.6)`;
+  const fill = earned ? `rgba(${base},0.18)` : "rgba(14,26,40,0.92)";
+  const iconCol = earned ? (isFinish ? "#e8c0b2" : "#f0c986") : "#9a8062";
   const inner = ICONS[badge.id] || ICON_FALLBACK;
-  const tcol = earned ? "#ffeebd" : "#b3d4de";
+  const tcol = earned ? "#ffeebd" : "#9a8062";
+  const checkFill = isFinish ? "#a64a3a" : "#d4a256";
   let label = "";
   cWrapLabel(badge.name).forEach((ln, k) => {
     label += `<text x="${x}" y="${y + 42 + k * 14}" text-anchor="middle" font-family="Bitter, Georgia, serif" font-size="10" letter-spacing="0.4" fill="${tcol}">${escapeHtml(ln.toUpperCase())}</text>`;
@@ -1696,18 +1750,23 @@ function meritNodeSVG(x, y, badge, earned, rankId) {
     + `<circle class="cnode-halo" cx="${x}" cy="${y}" r="30" fill="${ring}" opacity="${earned ? 0.6 : 0}" style="${earned ? "filter:blur(6px)" : ""}"/>`
     + `<circle cx="${x}" cy="${y}" r="17" fill="${fill}" stroke="${ring}" stroke-width="2"/>`
     + `<svg x="${x - 11}" y="${y - 11}" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="${iconCol}" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">${inner}</svg>`
-    + (earned ? `<circle cx="${x + 13}" cy="${y - 13}" r="6.5" fill="#d4a256"/><text x="${x + 13}" y="${y - 9.5}" text-anchor="middle" font-size="9" font-family="Lora, sans-serif" fill="#1a100a">✓</text>` : "")
+    + (earned ? `<circle cx="${x + 13}" cy="${y - 13}" r="6.5" fill="${checkFill}"/><text x="${x + 13}" y="${y - 9.5}" text-anchor="middle" font-size="9" font-family="Lora, sans-serif" fill="#1a100a">✓</text>` : "")
     + label
     + `<circle cx="${x}" cy="${y}" r="34" fill="transparent"/>`
     + `</g>`;
 }
-function rankStationSVG(x, y, num, complete, name) {
-  const stroke = complete ? "rgba(139,168,91,0.95)" : "rgba(212,162,86,0.9)";
+function rankStationSVG(x, y, num, complete, name, phase) {
+  const isFinish = phase === "finish";
+  const stroke = complete
+    ? "rgba(139,168,91,0.95)"
+    : (isFinish ? "rgba(166,74,58,0.95)" : "rgba(212,162,86,0.9)");
+  const numFill = complete ? "#8ba85b" : (isFinish ? "#e8c0b2" : "#f0c986");
+  const nameFill = isFinish ? "#d8aa9a" : "#c6a880";
   function hex(cx, cy, r) { let p = ""; for (let k = 0; k < 6; k++) { const a = Math.PI / 180 * (60 * k - 90); p += (k ? "L" : "M") + (cx + r * Math.cos(a)).toFixed(1) + " " + (cy + r * Math.sin(a)).toFixed(1) + " "; } return p + "Z"; }
   return `<g>`
     + `<path d="${hex(x, y, 22)}" fill="rgba(8,14,22,0.95)" stroke="${stroke}" stroke-width="2.5"/>`
-    + `<text x="${x}" y="${y + 6}" text-anchor="middle" font-family="Bitter, Georgia, serif" font-weight="900" font-size="17" fill="${complete ? "#8ba85b" : "#f0c986"}">${num}</text>`
-    + `<text x="${x}" y="${y + 46}" text-anchor="middle" font-family="Bitter, Georgia, serif" font-size="9.5" letter-spacing="1.5" fill="#c6a880">${escapeHtml(String(name || "").toUpperCase())}</text>`
+    + `<text x="${x}" y="${y + 6}" text-anchor="middle" font-family="Bitter, Georgia, serif" font-weight="900" font-size="17" fill="${numFill}">${num}</text>`
+    + `<text x="${x}" y="${y + 46}" text-anchor="middle" font-family="Bitter, Georgia, serif" font-size="9.5" letter-spacing="1.5" fill="${nameFill}">${escapeHtml(String(name || "").toUpperCase())}</text>`
     + `</g>`;
 }
 function capstoneSVG(x, y, done) {
@@ -1742,13 +1801,13 @@ function renderRankView(userData, rankId, foremanView) {
     ${topBar()}
     <button class="back-link" onclick="backToHome()">Back to ranks</button>
     <div class="rank-hero ${rankPhase(rank) ? 'phase-' + rankPhase(rank) : ''}">
-      <div class="eyebrow"><span>Rank ${String(idx + 1).padStart(2, "0")}</span><span class="sep">·</span><span class="sub">${inRank} / ${totalInRank} online</span></div>
+      <div class="eyebrow"><span>Rank ${String(idx + 1).padStart(2, "0")}</span><span class="sep">·</span><span class="sub">${inRank} / ${totalInRank} earned</span></div>
       <h1 class="display">${escapeHtml(rank.name)}<span class="punct">.</span></h1>
       <p class="subhead">${escapeHtml(rank.subtitle || "")}${foremanView ? " · " + escapeHtml(userData.name || "") : ""}</p>
       ${editMode ? '<button class="ghost" onclick="editRank(\'' + rank.id + '\')">Edit rank</button>'
         : (canSignOff ? '<button class="ghost" onclick="toggleBulk()">' + (bulkMode ? "Cancel Bulk" : "Bulk Sign-Off") + '</button>' : '')}
     </div>
-    <div class="section-head"><h2>Merits</h2><span class="meta">${rankPct}% Charged</span></div>
+    <div class="section-head"><h2>Merits</h2><span class="meta">${rankPct}% complete</span></div>
     ${bulkActive ? '<div class="bulk-bar"><span>' + selCount + ' selected</span><button onclick="openBulkSignoff()">Sign Off Selected →</button></div>' : ''}
     <div class="badge-grid" id="badgeGrid"></div>
     ${editMode ? '<button class="add-row" onclick="addBadge(\'' + rank.id + '\')">+ Add a New Merit</button>' : ''}
@@ -1815,7 +1874,7 @@ function openBulkSignoff() {
       <div></div>
       <div class="right">
         <button class="ghost" onclick="closeModal()">Cancel</button>
-        <button class="primary" onclick="bulkSignOff()">Light Them Up →</button>
+        <button class="primary" onclick="bulkSignOff()">Sign Them Off →</button>
       </div>
     </div>
   `;
@@ -1892,7 +1951,7 @@ function openBadge(userData, rankId, badgeId, foremanView) {
             <textarea id="signoffNotes" placeholder="Verified on the Anderson job"></textarea>
           </div>
         </div>
-      ` : `<p class="locked-note">${(foremanView && isLead()) ? "You can pass this off once you've earned it yourself." : "A foreman — or a lead who holds this merit — signs it off. Show your work to get it lit up."}</p>`))}
+      ` : `<p class="locked-note">${(foremanView && isLead()) ? "You can pass this off once you've earned it yourself." : "A foreman — or a lead who holds this merit — signs it off. Show your work and it'll be marked earned."}</p>`))}
     </div>
     <div class="modal-foot">
       <div>
@@ -1903,7 +1962,7 @@ function openBadge(userData, rankId, badgeId, foremanView) {
         ${(!editMode && earned) ? '<button onclick="shareWin()">Share Win</button>' : ""}
         <button class="ghost" onclick="closeModal()">Close</button>
         ${editMode ? '<button class="primary" onclick="saveBadgeEdits(\'' + rankId + '\',\'' + badgeId + '\')">Save</button>'
-          : (!earned && canSignOff ? '<button class="primary" onclick="signOff(\'' + badgeId + '\')">Light It Up →</button>' : "")}
+          : (!earned && canSignOff ? '<button class="primary" onclick="signOff(\'' + badgeId + '\')">Sign It Off →</button>' : "")}
       </div>
     </div>
   `;
@@ -2026,6 +2085,76 @@ function moveRank(rankId, dir) {
 
 /* ---------- Weekly digest (in-app, last 7 days) ---------- */
 function openDigest() { view = { name: "digest" }; window.scrollTo(0, 0); render(); }
+
+/* ---------- Analytics helpers (used by digest + roster) ---------- */
+function allSignoffs() {
+  const out = [];
+  apprentices.forEach(a => {
+    const eb = a.earnedBadges || {};
+    Object.keys(eb).forEach(id => {
+      const s = eb[id] || {};
+      const b = findBadge(id);
+      const rank = curriculum.ranks.find(r => r.badges.some(x => x.id === id));
+      out.push({
+        apprenticeId: a.id,
+        apprenticeName: a.name || a.email,
+        badgeId: id,
+        badgeName: b ? b.name : id,
+        rankName: rank ? rank.name : "",
+        trainerUid: s.trainerUid || null,
+        trainerName: s.trainer || "",
+        ts: s.ts || 0
+      });
+    });
+  });
+  return out;
+}
+function mentorTally(signoffs, windowDays) {
+  const cutoff = Date.now() - windowDays * 86400000;
+  const map = new Map();
+  signoffs.forEach(s => {
+    if (!s.trainerUid || s.ts < cutoff) return;
+    const cur = map.get(s.trainerUid) || { uid: s.trainerUid, name: s.trainerName || "Unknown", count: 0, lastTs: 0 };
+    cur.count++;
+    if (s.ts > cur.lastTs) { cur.lastTs = s.ts; if (s.trainerName) cur.name = s.trainerName; }
+    map.set(s.trainerUid, cur);
+  });
+  return Array.from(map.values()).sort((a, b) => b.count - a.count);
+}
+function rankPaceAll() {
+  const now = Date.now();
+  return curriculum.ranks.map(rank => {
+    if (!rank.badges.length) return { rank, completed: [], inProgress: [], avgDays: null };
+    const badgeIds = rank.badges.map(b => b.id);
+    const completed = [], inProgress = [];
+    apprentices.forEach(a => {
+      const eb = a.earnedBadges || {};
+      const earnedTs = badgeIds.map(id => (eb[id] && eb[id].ts) || 0).filter(t => t > 0);
+      if (!earnedTs.length) return;
+      const firstTs = Math.min.apply(null, earnedTs);
+      if (earnedTs.length === badgeIds.length) {
+        const lastTs = Math.max.apply(null, earnedTs);
+        completed.push({ apprenticeId: a.id, name: a.name || a.email, days: Math.max(0, Math.round((lastTs - firstTs) / 86400000)) });
+      } else {
+        inProgress.push({ apprenticeId: a.id, name: a.name || a.email, earnedCount: earnedTs.length, totalCount: badgeIds.length, daysSoFar: Math.max(0, Math.round((now - firstTs) / 86400000)) });
+      }
+    });
+    const avgDays = completed.length ? Math.round(completed.reduce((s, c) => s + c.days, 0) / completed.length) : null;
+    return { rank, completed, inProgress, avgDays };
+  }).filter(p => p.completed.length || p.inProgress.length);
+}
+function timeAgo(ts) {
+  if (!ts) return "";
+  const diff = Date.now() - ts;
+  const d = Math.floor(diff / 86400000);
+  if (d >= 1) return d + "d ago";
+  const h = Math.floor(diff / 3600000);
+  if (h >= 1) return h + "h ago";
+  const m = Math.floor(diff / 60000);
+  if (m >= 1) return m + "m ago";
+  return "just now";
+}
+
 function renderDigest() {
   const now = Date.now();
   const weekAgo = now - 7 * 86400000;
@@ -2064,6 +2193,40 @@ function renderDigest() {
     ${close.length ? listOf(close, c => '<div class="title">' + escapeHtml(c.name) + '</div><div class="sub">1 merit from ' + escapeHtml(c.rankName) + ' — needs ' + escapeHtml(c.merit) + '</div>') : '<p class="subhead">Nobody is one merit away right now.</p>'}
     <div class="section-head" style="margin-top:24px"><h2>Needs a Nudge</h2></div>
     ${stalled.length ? listOf(stalled, s => '<div class="title">' + escapeHtml(s.name) + '</div><div class="sub">' + (s.lastTs ? "No merit since " + formatDate(s.lastTs) : "No merits earned yet") + '</div>') : '<p class="subhead">Everyone has been active lately.</p>'}
+
+    ${(function () {
+      const all = allSignoffs();
+      const tally30 = mentorTally(all, 30);
+      const tally90 = mentorTally(all, 90);
+      if (!tally30.length && !tally90.length) return '';
+      const row = t => '<li class="item" style="cursor:default"><div class="body"><div class="title">' + escapeHtml(t.name) + '</div><div class="sub">' + t.count + ' sign-off' + (t.count === 1 ? '' : 's') + ' · last ' + timeAgo(t.lastTs) + '</div></div></li>';
+      return '<div class="section-head" style="margin-top:32px"><h2>Mentor Activity</h2><span class="meta">Who is signing off work</span></div>'
+        + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">'
+        + '<div><h4 style="font:italic 600 11px/1.4 Bitter,serif;letter-spacing:0.5px;text-transform:uppercase;color:var(--brass-soft);margin:0 0 10px">Last 30 days</h4>'
+        + (tally30.length ? '<ul class="item-list" style="margin:0">' + tally30.map(row).join('') + '</ul>' : '<p class="subhead" style="margin:0">Nobody has signed off work in the last 30 days.</p>')
+        + '</div>'
+        + '<div><h4 style="font:italic 600 11px/1.4 Bitter,serif;letter-spacing:0.5px;text-transform:uppercase;color:var(--brass-soft);margin:0 0 10px">Last 90 days</h4>'
+        + (tally90.length ? '<ul class="item-list" style="margin:0">' + tally90.map(row).join('') + '</ul>' : '<p class="subhead" style="margin:0">Nobody has signed off work in the last 90 days.</p>')
+        + '</div>'
+        + '</div>';
+    })()}
+
+    ${(function () {
+      const pace = rankPaceAll();
+      if (!pace.length) return '';
+      const paceRow = p => {
+        const avgLabel = p.avgDays !== null ? p.avgDays + ' day' + (p.avgDays === 1 ? '' : 's') + ' avg (' + p.completed.length + ' finished)' : 'Not completed by anyone yet';
+        const inProgRows = p.inProgress.length
+          ? '<div style="margin-top:8px;font-size:13px;color:var(--muted);font-style:italic">In progress: '
+            + p.inProgress.map(ip => escapeHtml(ip.name) + ' · ' + ip.earnedCount + '/' + ip.totalCount + ' · day ' + ip.daysSoFar
+              + (p.avgDays !== null && ip.daysSoFar > p.avgDays * 1.5 ? ' <span style="color:var(--dust-red);font-style:normal;font-weight:600">(over avg)</span>' : '')).join(' · ')
+            + '</div>'
+          : '';
+        return '<li class="item" style="cursor:default"><div class="body"><div class="title">' + escapeHtml(p.rank.name) + '</div><div class="sub">' + avgLabel + '</div>' + inProgRows + '</div></li>';
+      };
+      return '<div class="section-head" style="margin-top:32px"><h2>Pace</h2><span class="meta">Days to complete each rank</span></div>'
+        + '<ul class="item-list">' + pace.map(paceRow).join('') + '</ul>';
+    })()}
   `;
 }
 
@@ -2217,7 +2380,7 @@ function updateChargeGlow(userData) {
   const earned = (userData && userData.earnedBadges) ? Object.keys(userData.earnedBadges).length : 0;
   const t = total ? Math.max(0, Math.min(1, earned / total)) : 0;
   if (bl) bl.style.filter = "drop-shadow(0 0 " + (6 + t * 22).toFixed(1) + "px rgba(212,162,86," + (0.5 + t * 0.45).toFixed(2) + "))";
-  if (wm) wm.style.opacity = (0.04 + t * 0.08).toFixed(3);
+  if (wm) wm.style.opacity = (0.015 + t * 0.03).toFixed(3);
 }
 
 /* Win card: shareable image of an earned merit */
