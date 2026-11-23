@@ -824,8 +824,16 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
   filter: brightness(0) opacity(0.82);
 }
 .logo-watermark {
-  display: none;
+  position: fixed; inset: 0;
+  background-repeat: no-repeat;
+  background-position: center 52%;
+  background-size: 440px;
+  opacity: 0.045;
+  filter: brightness(0);
+  pointer-events: none; z-index: 0;
+  transition: opacity 0.6s ease;
 }
+@media (max-width: 640px) { .logo-watermark { background-size: 280px; } }
 .auth-logo {
   display: block; width: 180px; max-width: 60%; margin: 0 0 20px;
   filter: brightness(0) opacity(0.82);
@@ -2193,7 +2201,7 @@ function updateChargeGlow(userData) {
   const earned = (userData && userData.earnedBadges) ? Object.keys(userData.earnedBadges).length : 0;
   const t = total ? Math.max(0, Math.min(1, earned / total)) : 0;
   if (bl) bl.style.filter = "brightness(0) opacity(" + (0.72 + t * 0.2).toFixed(2) + ")";
-  if (wm) wm.style.opacity = (0.015 + t * 0.03).toFixed(3);
+  if (wm) wm.style.opacity = (0.035 + t * 0.055).toFixed(3);
 }
 
 /* Win card: shareable image of an earned merit */
