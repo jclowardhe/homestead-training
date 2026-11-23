@@ -654,21 +654,38 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
 @keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
 .rise { animation: rise 0.35s cubic-bezier(.2,.7,.2,1) backwards; }
 
-/* ===== Celebration ===== */
+/* ===== Celebration — minimal check card ===== */
 .celebration {
   position: fixed; inset: 0; z-index: 300; pointer-events: none;
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  background: radial-gradient(circle at 50% 44%, rgba(29,78,216,0.10), rgba(255,255,255,0) 55%);
-  animation: celIn .25s ease, celOut .7s ease 4.3s forwards;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(255,255,255,0.78);
+  backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+  animation: celIn .2s ease, celOut .35s ease 2.05s forwards;
 }
 @keyframes celIn { from { opacity: 0; } to { opacity: 1; } }
 @keyframes celOut { to { opacity: 0; } }
-.celebration .flash {
-  position: absolute; inset: 0;
-  background: rgba(29,78,216,0.12);
-  animation: flash .45s ease forwards;
+.cel-card {
+  text-align: center;
+  padding: 28px 40px;
+  animation: cardIn .35s cubic-bezier(.2,.9,.3,1.1) backwards;
 }
-@keyframes flash { 0% { opacity: 0; } 10% { opacity: 0.6; } 100% { opacity: 0; } }
+@keyframes cardIn { from { opacity: 0; transform: translateY(6px) scale(0.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
+.cel-check { margin-bottom: 14px; display: block; margin-left: auto; margin-right: auto; }
+.cel-check circle { stroke-dasharray: 176; stroke-dashoffset: 176; animation: drawCircle .5s cubic-bezier(.2,.9,.3,1) .05s forwards; }
+.cel-check path { stroke-dasharray: 48; stroke-dashoffset: 48; animation: drawCheck .3s cubic-bezier(.2,.9,.3,1) .45s forwards; }
+@keyframes drawCircle { to { stroke-dashoffset: 0; } }
+@keyframes drawCheck { to { stroke-dashoffset: 0; } }
+.cel-eyebrow {
+  font-family: inherit; font-weight: 700; font-style: normal;
+  font-size: 11px; letter-spacing: 0.5px; text-transform: uppercase;
+  color: var(--accent); margin-bottom: 6px;
+}
+.cel-name {
+  font-family: inherit; font-size: 22px; font-weight: 700;
+  color: var(--text-strong); letter-spacing: -0.3px; text-shadow: none; text-transform: none;
+}
+.cel-by { font-family: inherit; font-size: 13px; color: var(--muted); margin-top: 6px; font-style: normal; text-transform: none; }
+.celebration .flash { display: none; }
 .spark-canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
 .cel-rings { position: absolute; top: 41%; left: 50%; }
 .cel-rings span {
@@ -1237,7 +1254,7 @@ function renderAuth() {
     </div>
   `;
   const errEl = document.getElementById("authErr");
-  document.getElementById("authGo").addEventListener("click", () => {
+  const submitAuth = () => {
     const email = (document.getElementById("aEmail").value || "");
     const pass = (document.getElementById("aPass").value || "");
     if (!email || !pass) { errEl.textContent = "Enter your email and password."; return; }
@@ -1249,6 +1266,11 @@ function renderAuth() {
     } else {
       doLogin(email, pass, errEl);
     }
+  };
+  document.getElementById("authGo").addEventListener("click", submitAuth);
+  ["aName", "aEmail", "aPass", "aCo"].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); submitAuth(); } });
   });
   const toS = document.getElementById("toSignup");
   const toL = document.getElementById("toLogin");
@@ -2145,36 +2167,22 @@ function formatDate(d) {
 /* ---------- Celebration (apprentice device) ---------- */
 function celebrate(badge, trainer) {
   playZap();
-  if (navigator.vibrate) { try { navigator.vibrate([55, 40, 110]); } catch (e) {} }  // haptic snort
+  if (navigator.vibrate) { try { navigator.vibrate(55); } catch (e) {} }
   const cel = document.createElement("div");
   cel.className = "celebration";
   cel.innerHTML = `
-    <div class="flash"></div>
-    <canvas class="spark-canvas"></canvas>
-    <div class="cel-rings"><span></span><span></span><span></span></div>
-    <div class="cel-longhorn-wrap"><img class="cel-longhorn" src="${LOGO}" alt="Homestead Electric" /></div>
-    <canvas class="smoke-canvas"></canvas>
-    <div class="cel-text">
-      <div class="cel-eyebrow">Merit Unlocked</div>
+    <div class="cel-card">
+      <svg class="cel-check" viewBox="0 0 64 64" width="88" height="88">
+        <circle cx="32" cy="32" r="28" fill="none" stroke="#1d4ed8" stroke-width="3" stroke-linecap="round" />
+        <path d="M20 33 L29 42 L45 24" fill="none" stroke="#1d4ed8" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" />
+      </svg>
+      <div class="cel-eyebrow">Merit Earned</div>
       <div class="cel-name">${escapeHtml(badge.name)}</div>
       <div class="cel-by">${trainer ? "Signed by " + escapeHtml(trainer) : ""}</div>
     </div>
   `;
   document.body.appendChild(cel);
-  runSparks(cel.querySelector(".spark-canvas"));
-  // Smoke from the longhorn's nostrils once it has settled into place
-  const logo = cel.querySelector(".cel-longhorn");
-  const startSmoke = () => {
-    const r = logo.getBoundingClientRect();
-    if (!r.width) { setTimeout(startSmoke, 80); return; }
-    const pts = [
-      { x: r.left + r.width * 0.465, y: r.top + r.height * 0.93, dir: -1 },
-      { x: r.left + r.width * 0.535, y: r.top + r.height * 0.93, dir: 1 }
-    ];
-    runSmoke(cel.querySelector(".smoke-canvas"), pts, 3700);
-  };
-  setTimeout(startSmoke, 600);
-  setTimeout(() => cel.remove(), 5000);
+  setTimeout(() => cel.remove(), 2400);
 }
 
 /* Charge-up: brand logo + watermark glow harder as progress climbs */
@@ -2340,73 +2348,29 @@ function runSparks(canvas) {
   tick();
 }
 function playZap() {
-  /*
-    Triumphant fanfare:
-      Note 1: C5  (mallet strike + bell partials)
-      Note 2: E5  (80ms later)
-      Note 3: G5  (160ms later)
-      Note 4: C6  (260ms later — final big chord with overtones)
-    Each note layers a triangle "horn" body + sine partials so it reads as
-    brass-bell-meets-bugle. Ends in a sustained ringing chord.
-  */
+  /* Clean two-note confirmation: G5 then C6, sine waves, ~700ms total. */
   try {
     const AC = window.AudioContext || window.webkitAudioContext;
     if (!AC) return;
     const ctx = new AC();
     const t0 = ctx.currentTime;
-
-    // Master compressor-like gain to prevent clipping when notes stack
     const master = ctx.createGain();
-    master.gain.value = 0.55;
+    master.gain.value = 0.6;
     master.connect(ctx.destination);
-
-    function note(freq, when, dur, peakGain, withStrike) {
-      // optional mallet strike (high-to-low triangle click)
-      if (withStrike) {
-        const s = ctx.createOscillator();
-        const sg = ctx.createGain();
-        s.type = "triangle";
-        s.frequency.setValueAtTime(freq * 3.2, when);
-        s.frequency.exponentialRampToValueAtTime(freq * 1.2, when + 0.035);
-        sg.gain.setValueAtTime(0.0001, when);
-        sg.gain.linearRampToValueAtTime(0.06, when + 0.003);
-        sg.gain.exponentialRampToValueAtTime(0.0001, when + 0.06);
-        s.connect(sg); sg.connect(master);
-        s.start(when); s.stop(when + 0.08);
-      }
-      // Horn body: triangle wave (warmer + brassier than sine)
-      const horn = ctx.createOscillator();
-      const hg = ctx.createGain();
-      horn.type = "triangle";
-      horn.frequency.setValueAtTime(freq, when);
-      hg.gain.setValueAtTime(0.0001, when);
-      hg.gain.linearRampToValueAtTime(peakGain, when + 0.012);
-      hg.gain.exponentialRampToValueAtTime(peakGain * 0.4, when + 0.25);
-      hg.gain.exponentialRampToValueAtTime(0.0001, when + dur);
-      horn.connect(hg); hg.connect(master);
-      horn.start(when); horn.stop(when + dur + 0.05);
-      // Sine partial (the bell "ring" overtone, one octave up)
-      const ot = ctx.createOscillator();
-      const og = ctx.createGain();
-      ot.type = "sine";
-      ot.frequency.setValueAtTime(freq * 2, when);
-      og.gain.setValueAtTime(0.0001, when);
-      og.gain.linearRampToValueAtTime(peakGain * 0.45, when + 0.02);
-      og.gain.exponentialRampToValueAtTime(0.0001, when + dur * 0.85);
-      ot.connect(og); og.connect(master);
-      ot.start(when); ot.stop(when + dur + 0.05);
+    function note(freq, when, dur, peak) {
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.type = "sine";
+      o.frequency.setValueAtTime(freq, when);
+      g.gain.setValueAtTime(0.0001, when);
+      g.gain.linearRampToValueAtTime(peak, when + 0.015);
+      g.gain.exponentialRampToValueAtTime(0.0001, when + dur);
+      o.connect(g); g.connect(master);
+      o.start(when); o.stop(when + dur + 0.05);
     }
-
-    // Ascending fanfare — C major triad arpeggio + octave top
-    note(523.25, t0 + 0.00, 1.4, 0.18, true);  // C5
-    note(659.25, t0 + 0.09, 1.4, 0.17, true);  // E5
-    note(783.99, t0 + 0.18, 1.5, 0.17, true);  // G5
-    note(1046.5, t0 + 0.30, 2.0, 0.20, true);  // C6  — sustained finale
-
-    // Add a fifth (G6) on the final chord for the ringing finish
-    note(1568.0, t0 + 0.32, 1.6, 0.12, false);
-
-    setTimeout(() => ctx.close(), 2400);
+    note(783.99, t0 + 0.00, 0.45, 0.16);  // G5
+    note(1046.5, t0 + 0.09, 0.65, 0.18);  // C6
+    setTimeout(() => ctx.close(), 900);
   } catch (e) {}
 }
 
