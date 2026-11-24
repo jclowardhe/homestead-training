@@ -889,6 +889,69 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
   .activity-feed .af-time { min-width: 0; }
 }
 
+/* ===== Requirement sign-offs ===== */
+.req-list li { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.req-list li .req-text { flex: 1; }
+.req-list li.seen .req-text { color: var(--muted); }
+.req-list li.seen::before { content: "✓"; color: var(--success); font-weight: 700; }
+.req-seen { font-size: 12px; color: var(--success); font-weight: 600; white-space: nowrap; }
+.req-box {
+  display: inline-flex; align-items: center; gap: 6px; margin: 0;
+  font-size: 12px; font-weight: 600; color: var(--muted); text-transform: none; letter-spacing: 0;
+  white-space: nowrap; cursor: pointer;
+}
+.req-box input { width: 16px; height: 16px; accent-color: var(--accent); cursor: pointer; }
+.req-progress-line { height: 4px; background: var(--surface-2); border-radius: 2px; margin-top: 12px; overflow: hidden; }
+.req-progress-fill { height: 100%; background: var(--accent); transition: width .3s ease; }
+.req-progress-label { font-size: 12px; color: var(--muted); margin-top: 6px; font-weight: 500; }
+.check-all { padding: 0; margin: 0 0 4px; font-size: 12px; color: var(--accent); }
+.check-all:hover { background: none; text-decoration: underline; }
+
+/* ===== Review requests ===== */
+.review-box {
+  background: #fffbeb; border: 1px solid #f59e0b; border-left: 3px solid #f59e0b;
+  border-radius: 8px; padding: 12px 16px; margin-bottom: 16px;
+}
+.review-box .lbl { font-size: 11px; letter-spacing: 0.3px; text-transform: uppercase; color: var(--warn); font-weight: 700; }
+.review-box .when { font-size: 13px; color: var(--muted); margin-top: 2px; }
+.review-box .notes { font-size: 13px; color: var(--text); font-style: italic; margin-top: 6px; }
+.badge-tile.pending { border-color: #f59e0b; box-shadow: 0 0 0 3px rgba(245,158,11,0.12); }
+.st-pending { color: var(--warn); }
+.st-partial { color: var(--accent); }
+.review-queue .item { border-left: 3px solid #f59e0b; }
+.review-queue .item::before { display: none; }
+.review-queue .rq-merit { font-weight: 500; color: var(--muted); }
+.review-queue .rq-btn { flex-shrink: 0; }
+.pending-tag { color: var(--warn); border-color: #f59e0b; background: #fffbeb; }
+.quick-flag { color: var(--warn); font-weight: 600; }
+
+/* ===== Planner ===== */
+.planner-pick { margin-bottom: 24px; }
+.planner-pick label { margin-top: 0; }
+.planner-pick select { max-width: 460px; }
+.planner-reqs { font-size: 13px; color: var(--muted); margin-top: 10px; max-width: 760px; }
+.planner-reqs span { font-weight: 700; color: var(--text); }
+
+/* ===== Toast ===== */
+.toast {
+  position: fixed; left: 50%; bottom: 24px; z-index: 400;
+  transform: translate(-50%, 20px); opacity: 0;
+  display: flex; align-items: center; gap: 12px;
+  background: var(--text-strong); color: #ffffff;
+  padding: 12px 18px 12px 14px; border-radius: 12px;
+  box-shadow: var(--shadow-lg);
+  transition: transform .25s cubic-bezier(.2,.9,.3,1.1), opacity .2s ease;
+  max-width: calc(100vw - 32px);
+}
+.toast.in { transform: translate(-50%, 0); opacity: 1; }
+.toast-check {
+  width: 26px; height: 26px; border-radius: 50%; flex-shrink: 0;
+  background: var(--accent); color: #fff; font-weight: 700; font-size: 14px;
+  display: flex; align-items: center; justify-content: center;
+}
+.toast-msg { font-size: 14px; font-weight: 700; }
+.toast-sub { font-size: 12px; color: #cbd5e1; margin-top: 1px; }
+
 /* ===== Reorder ===== */
 .reorder { display: flex; flex-direction: column; gap: 3px; flex-shrink: 0; }
 .reorder button {
@@ -1078,6 +1141,7 @@ let bulkSel = {};
 let unsubProfile = null, unsubCurriculum = null, unsubRoster = null, unsubSelApp = null;
 let curriculumSubbed = false, rosterSubbed = false;
 let prevEarnedIds = null; // apprentice self celebration tracking
+let prevReqCounts = null, prevFeedbackLen = null;
 
 const C = () => document.getElementById("container");
 /* ---- DEV: view-as-apprentice toggle (persists in localStorage) ---- */
@@ -1111,7 +1175,7 @@ function cleanup() {
   unsubProfile = unsubCurriculum = unsubRoster = unsubSelApp = null;
   curriculumSubbed = rosterSubbed = false;
   profile = null; curriculum = null; apprentices = [];
-  selectedAppId = null; selectedAppData = null; prevEarnedIds = null;
+  selectedAppId = null; selectedAppData = null; prevEarnedIds = null; prevReqCounts = null; prevFeedbackLen = null;
   view = { name: "home" }; editMode = false; leadCrewMode = false;
 }
 
@@ -1121,16 +1185,36 @@ function subscribeProfile(uid) {
     profile = snap.data();
     if (profile.role === "apprentice" || profile.role === "lead") {
       const ids = Object.keys(profile.earnedBadges || {});
+      let celebrated = false;
       if (prevEarnedIds !== null) {
         const fresh = ids.filter(x => !prevEarnedIds.includes(x));
         if (fresh.length) {
           const bid = fresh[fresh.length - 1];
           const b = findBadge(bid);
           const eb = (profile.earnedBadges || {})[bid];
-          if (b) celebrate(b, eb && eb.trainer);
+          if (b) { celebrate(b, eb && eb.trainer); celebrated = true; }
         }
       }
       prevEarnedIds = ids;
+      // Requirement progress: small toast when a foreman signs off part of a merit
+      const rc = profile.reqChecks || {};
+      const counts = {};
+      Object.keys(rc).forEach(bid => { counts[bid] = Object.keys(rc[bid] || {}).length; });
+      if (prevReqCounts !== null && !celebrated) {
+        const bumped = Object.keys(counts).filter(bid => counts[bid] > (prevReqCounts[bid] || 0) && !(profile.earnedBadges || {})[bid]);
+        if (bumped.length && curriculum) {
+          const b = findBadge(bumped[0]);
+          if (b) { const p = reqProgress(profile, b); showToast(b.name, p.seen + " of " + p.total + " requirements signed off"); playTick(); }
+        }
+      }
+      prevReqCounts = counts;
+      // New note from a foreman (including "sent back" notes)
+      const fb = profile.feedback || [];
+      if (prevFeedbackLen !== null && fb.length > prevFeedbackLen) {
+        const last = fb.slice().sort((a, b) => (a.ts || 0) - (b.ts || 0)).pop();
+        if (last && last.fromUid !== uid) showToast("Note from " + (last.from || "your foreman"), String(last.text || "").slice(0, 90));
+      }
+      prevFeedbackLen = fb.length;
     }
     subscribeCurriculum();
     if (isForeman() || isLead()) subscribeRoster();
@@ -1209,6 +1293,7 @@ function render() {
   }
   if (view.name === "admin" && isForeman()) return renderAdmin();
   if (view.name === "digest" && isForeman()) return renderDigest();
+  if (view.name === "planner" && (isForeman() || isLead())) return renderPlanner();
   const crewMode = isForeman() || (isLead() && leadCrewMode);
   if (crewMode) {
     if (selectedAppId && selectedAppData) {
@@ -1294,6 +1379,7 @@ function topBar() {
     <div class="toolbar">
       <span class="who">${escapeHtml(profile.name || me.email)}<span class="role-tag ${roleClass}">${roleLabel}</span></span>
       ${isLead() ? `<button class="ghost" onclick="toggleLeadCrew()">${leadCrewMode ? "My Progress" : "Pass Off Crew"}</button>` : ""}
+      ${(isForeman() || isLead()) ? `<button class="ghost" onclick="openPlanner()">Planner</button>` : ""}
       ${isForeman() ? `<button class="ghost" onclick="openDigest()">This Week</button>` : ""}
       ${isForeman() ? `<button class="ghost" onclick="toggleEdit()">${editMode ? "Done Editing" : "Edit Curriculum"}</button>` : ""}
       ${isForeman() ? `<button class="ghost" onclick="openAdmin()">Manage Crew</button>` : ""}
@@ -1317,6 +1403,7 @@ function renderRoster() {
     <div class="eyebrow"><span>${foreman ? "Foreman" : "Lead"}</span><span class="sep">·</span><span class="sub">${escapeHtml(profile.company || "Crew")}</span></div>
     <h1 class="display-name">THE CREW<span class="punct">.</span></h1>
     <p class="subhead" style="margin-top:8px">${foreman ? "Pick someone to view their progress and sign off merits." : "Pick someone to pass them off on merits you've earned."}</p>
+    <div id="reviewQueue"></div>
     <div id="latestActivityStrip"></div>
     <div class="section-head">
       <h2>Crew</h2>
@@ -1324,6 +1411,22 @@ function renderRoster() {
     </div>
     <ul class="item-list" id="rosterList"></ul>
   `;
+  (function () {
+    const q = document.getElementById("reviewQueue");
+    if (!q) return;
+    const items = pendingReviews();
+    if (!items.length) return;
+    q.innerHTML = '<div class="section-head" style="margin-bottom:10px"><h2>Ready for Review</h2><span class="meta">' + items.length + ' waiting on you</span></div>'
+      + '<ul class="item-list review-queue">' + items.map(it =>
+        '<li class="item" data-aid="' + escapeAttr(it.a.id) + '" data-rank="' + escapeAttr(it.rankId || "") + '" data-badge="' + escapeAttr(it.badge.id) + '">'
+        + '<div class="body"><div class="title">' + escapeHtml(it.a.name || it.a.email) + ' <span class="rq-merit">· ' + escapeHtml(it.badge.name) + '</span></div>'
+        + '<div class="sub">' + escapeHtml(it.rankName) + ' · waiting ' + timeAgo(it.ts).replace(" ago", "") + (it.note ? ' · "' + escapeHtml(it.note) + '"' : '') + '</div></div>'
+        + '<button class="primary rq-btn">Review</button></li>'
+      ).join('') + '</ul>';
+    q.querySelectorAll("li[data-aid]").forEach(li => {
+      li.addEventListener("click", () => openReview(li.getAttribute("data-aid"), li.getAttribute("data-rank"), li.getAttribute("data-badge")));
+    });
+  })();
   (function () {
     const strip = document.getElementById("latestActivityStrip");
     if (!strip) return;
@@ -1653,7 +1756,14 @@ function renderRankView(userData, rankId, foremanView) {
     const selectable = bulkActive && !earned;
     const selected = selectable && !!bulkSel[badge.id];
     const tile = document.createElement("div");
-    tile.className = "badge-tile rise" + (earned ? " earned" : "") + (selectable ? " selectable" : "") + (selected ? " selected" : "");
+    const tilePending = !earned && !!pendingRequest(userData, badge.id);
+    const tileProg = reqProgress(userData, badge);
+    const statusHtml = earned
+      ? "Earned · " + formatDate(earned.date)
+      : (tilePending
+        ? '<span class="st-pending">Ready for review</span>'
+        : (tileProg.seen ? '<span class="st-partial">' + tileProg.seen + " of " + tileProg.total + " seen</span>" : (badge.reqs || []).length + " Reqs"));
+    tile.className = "badge-tile rise" + (earned ? " earned" : "") + (tilePending ? " pending" : "") + (selectable ? " selectable" : "") + (selected ? " selected" : "");
     tile.style.animationDelay = (bidx * 0.06) + "s";
     tile.innerHTML = `
       <div class="emblem">
@@ -1663,7 +1773,7 @@ function renderRankView(userData, rankId, foremanView) {
         ${iconSvg(badge.id)}
       </div>
       <div class="badge-name">${escapeHtml(badge.name)}</div>
-      <div class="badge-status">${earned ? "Earned · " + formatDate(earned.date) : (badge.reqs || []).length + " Reqs"}</div>
+      <div class="badge-status">${statusHtml}</div>
       ${selectable ? '<div class="bulk-check">' + (selected ? "✓" : "") + '</div>' : ''}
       ${editMode ? `
         <div class="reorder reorder-tile" onclick="event.stopPropagation()">
@@ -1681,10 +1791,43 @@ function renderRankView(userData, rankId, foremanView) {
 }
 function toggleBulk() { bulkMode = !bulkMode; bulkSel = {}; render(); }
 function toggleBulkSel(id) { if (bulkSel[id]) delete bulkSel[id]; else bulkSel[id] = true; render(); }
+/* ---------- Sign-off rules (shared) ---------- */
+const BACKDATE_DAYS = 14;
+function localDateStr(d) {
+  const z = d || new Date();
+  return z.getFullYear() + "-" + String(z.getMonth() + 1).padStart(2, "0") + "-" + String(z.getDate()).padStart(2, "0");
+}
+function minSignoffDate() { const d = new Date(); d.setDate(d.getDate() - BACKDATE_DAYS); return localDateStr(d); }
+function validateSignoff(trainer, date, note) {
+  if (!trainer || !trainer.trim()) return "Your name is required.";
+  if (!note || note.trim().length < 8) return "Write a short note on what you watched them do.";
+  if (!date) return "Date is required.";
+  if (date > localDateStr()) return "The date can't be in the future.";
+  if (date < minSignoffDate()) return "Sign-offs can only be backdated " + BACKDATE_DAYS + " days.";
+  return "";
+}
+function reqKey(text) {
+  let h = 5381; const s = String(text || "");
+  for (let i = 0; i < s.length; i++) h = (((h << 5) + h) + s.charCodeAt(i)) >>> 0;
+  return "r" + h.toString(36);
+}
+function reqProgress(userData, badge) {
+  const checks = ((userData && userData.reqChecks) || {})[badge.id] || {};
+  const reqs = badge.reqs || [];
+  const seen = reqs.filter(r => checks[reqKey(r)]).length;
+  return { seen: seen, total: reqs.length, checks: checks };
+}
+function pendingRequest(userData, badgeId) {
+  return ((userData && userData.reviewRequests) || {})[badgeId] || null;
+}
+function dateField(id) {
+  return '<input type="date" id="' + id + '" value="' + localDateStr() + '" min="' + minSignoffDate() + '" max="' + localDateStr() + '" />';
+}
+
+/* ---------- Bulk sign-off ---------- */
 function openBulkSignoff() {
   const ids = Object.keys(bulkSel);
   if (!ids.length) { alert("Tap some merits to select them first."); return; }
-  const today = new Date().toISOString().slice(0, 10);
   const names = ids.map(id => { const b = findBadge(id); return b ? b.name : id; });
   const modal = document.getElementById("modal");
   modal.innerHTML = `
@@ -1696,13 +1839,14 @@ function openBulkSignoff() {
     </div>
     <div class="modal-body">
       <div class="signoff-form">
-        <div class="form-eyebrow">— Trainer Sign-Off</div>
-        <label>Trainer / Verifier Name</label>
+        <div class="form-eyebrow">Trainer Sign-Off</div>
+        <label>Your Name</label>
         <input type="text" id="bulkTrainer" value="${escapeAttr(profile.name || "")}" />
-        <label>Date</label>
-        <input type="date" id="bulkDate" value="${today}" />
-        <label>Notes (optional)</label>
-        <textarea id="bulkNotes" placeholder="Verified on the Anderson job"></textarea>
+        <label>Date Observed</label>
+        ${dateField("bulkDate")}
+        <label>What did you watch them do?</label>
+        <textarea id="bulkNotes" placeholder="Watched him do all of these on the Anderson rough-in"></textarea>
+        <div class="auth-error" id="bulkErr"></div>
       </div>
     </div>
     <div class="modal-foot">
@@ -1720,13 +1864,17 @@ function bulkSignOff() {
   const trainer = (document.getElementById("bulkTrainer").value || "").trim();
   const date = document.getElementById("bulkDate").value;
   const notes = (document.getElementById("bulkNotes").value || "").trim();
-  if (!trainer) { alert("Trainer / verifier name is required."); return; }
-  if (!date) { alert("Date is required."); return; }
+  const err = validateSignoff(trainer, date, notes);
+  if (err) { document.getElementById("bulkErr").textContent = err; return; }
   const ids = Object.keys(bulkSel);
   const upd = {};
-  ids.forEach(id => { upd["earnedBadges." + id] = { trainer: trainer, trainerUid: me.uid, date: date, notes: notes, ts: Date.now() }; });
+  const now = Date.now();
+  ids.forEach(id => {
+    upd["earnedBadges." + id] = { trainer: trainer, trainerUid: me.uid, date: date, notes: notes, ts: now, via: "bulk" };
+    upd["reviewRequests." + id] = firebase.firestore.FieldValue.delete();
+  });
   db.collection("users").doc(selectedAppId).update(upd)
-    .then(() => { bulkMode = false; bulkSel = {}; closeModal(); })
+    .then(() => { bulkMode = false; bulkSel = {}; closeModal(); showToast("Signed off " + ids.length + " merit" + (ids.length === 1 ? "" : "s")); })
     .catch(e => alert("Could not sign off: " + e.message));
 }
 
@@ -1735,24 +1883,112 @@ function openBadge(userData, rankId, badgeId, foremanView) {
   const rank = curriculum.ranks.find(r => r.id === rankId);
   const badge = rank.badges.find(b => b.id === badgeId);
   const earned = (userData.earnedBadges || {})[badgeId];
-  const today = new Date().toISOString().slice(0, 10);
   const canSignOff = foremanView && (isForeman() || (isLead() && selectedAppId !== me.uid && !!(profile.earnedBadges || {})[badgeId]));
+  const prog = reqProgress(userData, badge);
+  const pending = pendingRequest(userData, badgeId);
+  const isSelf = !foremanView;
+  const reqs = badge.reqs || [];
   if (earned) window.__win = { name: badge.name, date: earned.date, user: userData.name || "" };
+
+  // Requirement list: shows who saw each requirement; foremen get checkboxes on unseen ones.
+  const reqList = '<ol class="req-list">' + reqs.map(r => {
+    const k = reqKey(r);
+    const c = prog.checks[k];
+    const right = c
+      ? '<span class="req-seen">✓ ' + escapeHtml(c.by || "") + ' · ' + formatDate(c.date) + '</span>'
+      : (canSignOff && !earned
+        ? '<label class="req-box"><input type="checkbox" class="req-check" data-key="' + k + '" /> Seen</label>'
+        : '');
+    return '<li class="' + (c ? "seen" : "") + '"><span class="req-text">' + escapeHtml(r) + '</span>' + right + '</li>';
+  }).join("") + '</ol>';
+
+  const progressLine = (!earned && reqs.length)
+    ? '<div class="req-progress-line"><div class="req-progress-fill" style="width:' + Math.round(prog.seen / reqs.length * 100) + '%"></div></div>'
+      + '<div class="req-progress-label">' + prog.seen + ' of ' + reqs.length + ' requirements signed off</div>'
+    : '';
+
+  const pendingBox = (pending && !earned)
+    ? '<div class="review-box"><div class="lbl">Ready for review</div>'
+      + '<div class="when">Requested ' + timeAgo(pending.ts) + '</div>'
+      + (pending.note ? '<div class="notes">"' + escapeHtml(pending.note) + '"</div>' : '')
+      + '</div>'
+    : '';
+
+  let bottom = "";
+  if (editMode) {
+    bottom = "";
+  } else if (earned) {
+    bottom = `
+      <div class="req-section">
+        <h4>Sign-Off</h4>
+        <div class="signoff-card">
+          <div class="lbl">Verified by</div>
+          <div class="who">${escapeHtml(earned.trainer || "—")}</div>
+          <div class="when">${formatDate(earned.date)}</div>
+          ${earned.notes ? '<div class="notes">"' + escapeHtml(earned.notes) + '"</div>' : ""}
+        </div>
+      </div>`;
+  } else if (canSignOff) {
+    bottom = `
+      ${pendingBox}
+      <div class="req-section">
+        <h4>${reqs.length ? "Sign Off What You Saw" : "Award This Merit"}</h4>
+        <div class="signoff-form">
+          ${reqs.length > 1 && prog.seen < reqs.length ? '<button class="ghost check-all" onclick="checkAllReqs()">Check all remaining</button>' : ''}
+          <label>Your Name</label>
+          <input type="text" id="trainerName" value="${escapeAttr(profile.name || "")}" />
+          <label>Date Observed</label>
+          ${dateField("signoffDate")}
+          <label>What did you watch them do?</label>
+          <textarea id="signoffNotes" placeholder="Watched him lay out the master bath on the Anderson job"></textarea>
+          <div class="auth-error" id="signoffErr"></div>
+        </div>
+      </div>`;
+  } else if (isSelf) {
+    bottom = pending
+      ? pendingBox
+      : `<div class="req-section">
+          <h4>Ready to Be Checked Off?</h4>
+          <div class="signoff-form">
+            <label>Where did you do it? (optional)</label>
+            <textarea id="reqNote" placeholder="Did this on the Anderson job today"></textarea>
+            <div class="auth-error" id="reqErr"></div>
+          </div>
+          <p class="locked-note">Your foreman gets a review request and signs off what he's seen.</p>
+        </div>`;
+  } else {
+    bottom = pendingBox + '<p class="locked-note">' + (isLead() ? "You can pass this off once you've earned it yourself." : "A foreman, or a lead who holds this merit, signs it off.") + '</p>';
+  }
+
+  let footLeft = "";
+  if (editMode) footLeft = '<button class="danger" onclick="deleteBadge(\'' + rankId + '\',\'' + badgeId + '\')">Delete</button>';
+  else if (earned && isForeman() && foremanView) footLeft = '<button class="danger" onclick="revokeBadge(\'' + badgeId + '\')">Revoke</button>';
+  else if (pending && canSignOff) footLeft = '<button class="ghost" onclick="sendBack(\'' + badgeId + '\')">Send Back</button>';
+
+  let footRight = "";
+  if (!editMode && earned) footRight += '<button onclick="shareWin()">Share Win</button>';
+  footRight += '<button class="ghost" onclick="closeModal()">Close</button>';
+  if (editMode) footRight += '<button class="primary" onclick="saveBadgeEdits(\'' + rankId + '\',\'' + badgeId + '\')">Save</button>';
+  else if (!earned && canSignOff) footRight += reqs.length
+    ? '<button class="primary" onclick="saveReqChecks(\'' + rankId + '\',\'' + badgeId + '\')">Save Sign-Off →</button>'
+    : '<button class="primary" onclick="signOff(\'' + badgeId + '\')">Sign It Off →</button>';
+  else if (!earned && isSelf && !pending) footRight += '<button class="primary" onclick="requestReview(\'' + badgeId + '\')">Ready for Review →</button>';
+  else if (!earned && isSelf && pending) footRight += '<button class="ghost" onclick="cancelReview(\'' + badgeId + '\')">Cancel Request</button>';
 
   const modal = document.getElementById("modal");
   modal.innerHTML = `
     <button class="modal-close" onclick="closeModal()">×</button>
     <div class="modal-head">
       <div class="eyebrow"><span>${escapeHtml(rank.name)}</span><span class="sep">·</span><span class="sub">Merit</span></div>
-      <h3>${editMode ? '<input type="text" id="bName" value="' + escapeAttr(badge.name) + '" style="font: inherit; color: inherit; border: none; border-bottom: 1px dashed var(--line); width: 100%; padding: 4px 0; background: transparent;" />' : escapeHtml(badge.name)}</h3>
+      <h3>${editMode ? '<input type="text" id="bName" value="' + escapeAttr(badge.name) + '" style="font: inherit; color: inherit; border: none; border-bottom: 1px dashed var(--border-strong); width: 100%; padding: 4px 0; background: transparent;" />' : escapeHtml(badge.name)}</h3>
       ${editMode ? '<textarea id="bDesc" style="margin-top:10px">' + escapeHtml(badge.desc || "") + '</textarea>' : (badge.desc ? '<div class="desc">' + escapeHtml(badge.desc) + '</div>' : "")}
     </div>
     <div class="modal-body">
       <div class="req-section">
         <h4>Requirements</h4>
         ${editMode
-          ? '<textarea id="bReqs" rows="6" placeholder="One requirement per line">' + escapeHtml((badge.reqs || []).join("\n")) + '</textarea>'
-          : '<ol class="req-list">' + (badge.reqs || []).map(r => '<li>' + escapeHtml(r) + '</li>').join("") + '</ol>'}
+          ? '<textarea id="bReqs" rows="6" placeholder="One requirement per line">' + escapeHtml(reqs.join("\n")) + '</textarea><p class="locked-note" style="margin-top:8px">Rewording a requirement resets any sign-offs on that line.</p>'
+          : reqList + progressLine}
       </div>
       ${editMode && curriculum.ranks.length > 1 ? `
         <div class="req-section">
@@ -1763,69 +1999,231 @@ function openBadge(userData, rankId, badgeId, foremanView) {
           <p class="locked-note" style="margin-top:8px">Picking a different rank moves this merit immediately. Save unsaved name/description edits first.</p>
         </div>
       ` : ""}
-      ${editMode ? "" : (earned ? `
-        <div class="req-section">
-          <h4>Sign-Off</h4>
-          <div class="signoff-card">
-            <div class="lbl">Verified by</div>
-            <div class="who">${escapeHtml(earned.trainer || "—")}</div>
-            <div class="when">${formatDate(earned.date)}</div>
-            ${earned.notes ? '<div class="notes">"' + escapeHtml(earned.notes) + '"</div>' : ""}
-          </div>
-        </div>
-      ` : (canSignOff ? `
-        <div class="req-section">
-          <h4>Award This Merit</h4>
-          <div class="signoff-form">
-            <div class="form-eyebrow">— Trainer Sign-Off</div>
-            <label>Trainer / Verifier Name</label>
-            <input type="text" id="trainerName" value="${escapeAttr(profile.name || "")}" />
-            <label>Date</label>
-            <input type="date" id="signoffDate" value="${today}" />
-            <label>Notes (optional)</label>
-            <textarea id="signoffNotes" placeholder="Verified on the Anderson job"></textarea>
-          </div>
-        </div>
-      ` : `<p class="locked-note">${(foremanView && isLead()) ? "You can pass this off once you've earned it yourself." : "A foreman — or a lead who holds this merit — signs it off. Show your work and it'll be marked earned."}</p>`))}
+      ${bottom}
     </div>
     <div class="modal-foot">
-      <div>
-        ${editMode ? '<button class="danger" onclick="deleteBadge(\'' + rankId + '\',\'' + badgeId + '\')">Delete</button>'
-          : (earned && isForeman() && foremanView ? '<button class="danger" onclick="revokeBadge(\'' + badgeId + '\')">Revoke</button>' : "")}
-      </div>
-      <div class="right">
-        ${(!editMode && earned) ? '<button onclick="shareWin()">Share Win</button>' : ""}
-        <button class="ghost" onclick="closeModal()">Close</button>
-        ${editMode ? '<button class="primary" onclick="saveBadgeEdits(\'' + rankId + '\',\'' + badgeId + '\')">Save</button>'
-          : (!earned && canSignOff ? '<button class="primary" onclick="signOff(\'' + badgeId + '\')">Sign It Off →</button>' : "")}
-      </div>
+      <div>${footLeft}</div>
+      <div class="right">${footRight}</div>
     </div>
   `;
   document.getElementById("modalBackdrop").classList.add("open");
 }
 function closeModal() { document.getElementById("modalBackdrop").classList.remove("open"); }
+function checkAllReqs() { document.querySelectorAll(".req-check").forEach(b => { b.checked = true; }); }
 
-/* ---------- Sign-off (foreman writes to the apprentice doc) ---------- */
+/* ---------- Requirement sign-offs (foreman/lead writes to the apprentice doc) ---------- */
+function saveReqChecks(rankId, badgeId) {
+  if (!selectedAppId || !selectedAppData) return;
+  const rank = curriculum.ranks.find(r => r.id === rankId);
+  const badge = rank && rank.badges.find(b => b.id === badgeId);
+  if (!badge) return;
+  const errEl = document.getElementById("signoffErr");
+  const trainer = (document.getElementById("trainerName").value || "").trim();
+  const date = document.getElementById("signoffDate").value;
+  const note = (document.getElementById("signoffNotes").value || "").trim();
+  const err = validateSignoff(trainer, date, note);
+  if (err) { errEl.textContent = err; return; }
+  const prog = reqProgress(selectedAppData, badge);
+  const picked = Array.from(document.querySelectorAll(".req-check:checked")).map(b => b.getAttribute("data-key"));
+  const allKeys = (badge.reqs || []).map(reqKey);
+  const seenAfter = new Set(allKeys.filter(k => prog.checks[k]).concat(picked));
+  const complete = allKeys.every(k => seenAfter.has(k));
+  if (!picked.length && !complete) { errEl.textContent = "Check at least one requirement you watched them do."; return; }
+  const now = Date.now();
+  const entry = { by: trainer, byUid: me.uid, date: date, note: note, ts: now };
+  const upd = {};
+  picked.forEach(k => { upd["reqChecks." + badgeId + "." + k] = entry; });
+  if (complete) upd["earnedBadges." + badgeId] = { trainer: trainer, trainerUid: me.uid, date: date, notes: note, ts: now, via: "requirements" };
+  upd["reviewRequests." + badgeId] = firebase.firestore.FieldValue.delete();
+  db.collection("users").doc(selectedAppId).update(upd)
+    .then(() => {
+      closeModal();
+      showToast(complete ? badge.name + " earned" : badge.name, complete
+        ? "Signed off for " + (selectedAppData.name || "apprentice")
+        : seenAfter.size + " of " + allKeys.length + " requirements signed off");
+    })
+    .catch(e => alert("Could not save: " + e.message));
+}
+
+/* Whole-merit sign-off, used for merits with no listed requirements */
 function signOff(badgeId) {
   if (!selectedAppId) return;
   const trainer = (document.getElementById("trainerName").value || "").trim();
   const date = document.getElementById("signoffDate").value;
   const notes = (document.getElementById("signoffNotes").value || "").trim();
-  if (!trainer) { alert("Trainer / verifier name is required."); return; }
-  if (!date) { alert("Date is required."); return; }
-  const payload = { trainer: trainer, trainerUid: me.uid, date: date, notes: notes, ts: Date.now() };
-  const upd = {}; upd["earnedBadges." + badgeId] = payload;
+  const err = validateSignoff(trainer, date, notes);
+  if (err) { document.getElementById("signoffErr").textContent = err; return; }
+  const upd = {};
+  upd["earnedBadges." + badgeId] = { trainer: trainer, trainerUid: me.uid, date: date, notes: notes, ts: Date.now() };
+  upd["reviewRequests." + badgeId] = firebase.firestore.FieldValue.delete();
   db.collection("users").doc(selectedAppId).update(upd)
     .then(() => closeModal())
     .catch(e => alert("Could not sign off: " + e.message));
 }
 function revokeBadge(badgeId) {
   if (!selectedAppId) return;
-  if (!confirm("Power down this merit? The sign-off will be removed.")) return;
-  const upd = {}; upd["earnedBadges." + badgeId] = firebase.firestore.FieldValue.delete();
+  if (!confirm("Remove this sign-off? The merit and its requirement sign-offs go back to not earned.")) return;
+  const upd = {};
+  upd["earnedBadges." + badgeId] = firebase.firestore.FieldValue.delete();
+  upd["reqChecks." + badgeId] = firebase.firestore.FieldValue.delete();
   db.collection("users").doc(selectedAppId).update(upd)
     .then(() => closeModal())
     .catch(e => alert("Could not revoke: " + e.message));
+}
+
+/* ---------- Review requests ---------- */
+function requestReview(badgeId) {
+  const note = ((document.getElementById("reqNote") || {}).value || "").trim().slice(0, 300);
+  const upd = {};
+  upd["reviewRequests." + badgeId] = { ts: Date.now(), note: note };
+  db.collection("users").doc(me.uid).update(upd)
+    .then(() => { closeModal(); showToast("Sent for review", "Your foreman will see it on his screen"); })
+    .catch(e => { const el = document.getElementById("reqErr"); if (el) el.textContent = "Could not send: " + e.message; });
+}
+function cancelReview(badgeId) {
+  const upd = {};
+  upd["reviewRequests." + badgeId] = firebase.firestore.FieldValue.delete();
+  db.collection("users").doc(me.uid).update(upd)
+    .then(() => closeModal())
+    .catch(e => alert("Could not cancel: " + e.message));
+}
+function sendBack(badgeId) {
+  if (!selectedAppId) return;
+  const badge = findBadge(badgeId);
+  const reason = ((document.getElementById("signoffNotes") || {}).value || "").trim();
+  if (reason.length < 4) {
+    const el = document.getElementById("signoffErr");
+    if (el) el.textContent = "Use the note box to tell him what still needs work, then hit Send Back.";
+    return;
+  }
+  const upd = {};
+  upd["reviewRequests." + badgeId] = firebase.firestore.FieldValue.delete();
+  upd["feedback"] = firebase.firestore.FieldValue.arrayUnion({
+    from: profile.name || me.email, fromUid: me.uid,
+    text: "Not yet on " + (badge ? badge.name : "this merit") + ": " + reason, ts: Date.now()
+  });
+  db.collection("users").doc(selectedAppId).update(upd)
+    .then(() => { closeModal(); showToast("Sent back", "Your note went to his feedback"); })
+    .catch(e => alert("Could not send back: " + e.message));
+}
+function pendingReviews() {
+  const out = [];
+  apprentices.forEach(a => {
+    if (me && a.id === me.uid) return;
+    const rr = a.reviewRequests || {};
+    Object.keys(rr).forEach(bid => {
+      if ((a.earnedBadges || {})[bid]) return;
+      const b = findBadge(bid);
+      if (!b) return;
+      if (!isForeman() && !(profile.earnedBadges || {})[bid]) return; // leads only see what they can sign off
+      const rank = curriculum.ranks.find(r => r.badges.some(x => x.id === bid));
+      out.push({ a: a, badge: b, rankId: rank ? rank.id : null, rankName: rank ? rank.name : "", note: (rr[bid] || {}).note || "", ts: (rr[bid] || {}).ts || 0 });
+    });
+  });
+  return out.sort((x, y) => x.ts - y.ts);
+}
+function openReview(aid, rankId, badgeId) {
+  const a = apprentices.find(x => x.id === aid);
+  if (!a || !rankId) return;
+  if (isLead()) leadCrewMode = true;
+  selectedAppId = aid; selectedAppData = a; subscribeSelApp(aid);
+  bulkMode = false; bulkSel = {};
+  view = { name: "rank", rankId: rankId };
+  window.scrollTo(0, 0); render();
+  openBadge(a, rankId, badgeId, true);
+}
+
+/* ---------- Training planner ("who needs this") ---------- */
+let plannerBadgeId = null;
+function openPlanner() { view = { name: "planner" }; window.scrollTo(0, 0); render(); }
+function setPlannerBadge(id) { plannerBadgeId = id; render(); }
+function backFromPlanner() {
+  selectedAppId = null; selectedAppData = null; if (unsubSelApp) { unsubSelApp(); unsubSelApp = null; }
+  if (isLead()) leadCrewMode = true;
+  view = { name: "home" }; window.scrollTo(0, 0); render();
+}
+function renderPlanner() {
+  if (!plannerBadgeId || !findBadge(plannerBadgeId)) {
+    const firstRank = curriculum.ranks.find(r => r.badges.length);
+    plannerBadgeId = firstRank ? firstRank.badges[0].id : null;
+  }
+  const badge = plannerBadgeId ? findBadge(plannerBadgeId) : null;
+  const rank = badge ? curriculum.ranks.find(r => r.badges.some(x => x.id === badge.id)) : null;
+  const opts = curriculum.ranks.map(r => '<optgroup label="' + escapeAttr(r.name) + '">'
+    + r.badges.map(b => '<option value="' + b.id + '"' + (b.id === plannerBadgeId ? ' selected' : '') + '>' + escapeHtml(b.name) + '</option>').join('')
+    + '</optgroup>').join('');
+  let rows = [], haveCount = 0;
+  if (badge) {
+    apprentices.forEach(a => {
+      if (me && a.id === me.uid) return;
+      const eb = a.earnedBadges || {};
+      if (eb[badge.id]) { haveCount++; return; }
+      const p = reqProgress(a, badge);
+      const left = rank.badges.filter(x => !eb[x.id]).length;
+      const cur = computeCurrentRank(eb);
+      rows.push({ a: a, p: p, left: left, cur: cur, pending: !!pendingRequest(a, badge.id) });
+    });
+    rows.sort((x, y) => (y.pending - x.pending) || (y.p.seen - x.p.seen) || (x.left - y.left) || (x.a.name || "").localeCompare(y.a.name || ""));
+  }
+  const leadCantSign = isLead() && badge && !(profile.earnedBadges || {})[badge.id];
+  C().innerHTML = `
+    ${topBar()}
+    <button class="back-link" onclick="backFromPlanner()">Back to crew</button>
+    <div class="eyebrow"><span>Crew</span><span class="sep">·</span><span class="sub">Training Planner</span></div>
+    <h1 class="display">Who Needs This<span class="punct">?</span></h1>
+    <p class="subhead">Pick a merit to see who still needs it. Bring them on the next job where that work is happening.</p>
+    <div class="planner-pick">
+      <label for="plannerSel">Merit</label>
+      <select id="plannerSel" onchange="setPlannerBadge(this.value)">${opts}</select>
+      ${badge && (badge.reqs || []).length ? '<div class="planner-reqs"><span>Watch for:</span> ' + badge.reqs.map(escapeHtml).join(' · ') + '</div>' : ''}
+    </div>
+    ${leadCantSign ? '<div class="edit-banner">You haven\'t earned this one yet, so a foreman will need to sign it off.</div>' : ''}
+    <div class="section-head"><h2>Still Needs It</h2><span class="meta">${rows.length} need it · ${haveCount} have it</span></div>
+    <ul class="item-list" id="plannerList"></ul>
+  `;
+  const list = document.getElementById("plannerList");
+  if (!badge) { list.innerHTML = '<p class="subhead">No merits in the curriculum yet.</p>'; return; }
+  if (!rows.length) { list.innerHTML = '<p class="subhead">Everyone on the crew has this merit.</p>'; return; }
+  rows.forEach(r => {
+    const initials = (r.a.name || "?").split(/\s+/).map(s => s[0]).filter(Boolean).slice(0, 2).join("").toUpperCase();
+    const li = document.createElement("li");
+    li.className = "item";
+    li.innerHTML = `
+      <div class="avatar">${escapeHtml(initials)}</div>
+      <div class="body">
+        <div class="title">${escapeHtml(r.a.name || r.a.email)}${r.pending ? '<span class="role-tag pending-tag">Ready for review</span>' : ''}</div>
+        <div class="sub">${r.p.total ? r.p.seen + " of " + r.p.total + " requirements seen · " : ""}${r.left} merit${r.left === 1 ? "" : "s"} left in ${escapeHtml(rank.name)} · working on ${escapeHtml(r.cur.name)}</div>
+      </div>
+      <div class="arrow">▶</div>
+    `;
+    li.addEventListener("click", () => openReview(r.a.id, rank.id, badge.id));
+    list.appendChild(li);
+  });
+}
+
+/* ---------- Toasts + small sounds ---------- */
+function showToast(msg, sub) {
+  const t = document.createElement("div");
+  t.className = "toast";
+  t.innerHTML = '<span class="toast-check">✓</span><div><div class="toast-msg">' + escapeHtml(msg) + '</div>'
+    + (sub ? '<div class="toast-sub">' + escapeHtml(sub) + '</div>' : '') + '</div>';
+  document.body.appendChild(t);
+  requestAnimationFrame(() => t.classList.add("in"));
+  setTimeout(() => { t.classList.remove("in"); setTimeout(() => t.remove(), 300); }, 3400);
+}
+function playTick() {
+  try {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return;
+    const ctx = new AC(); const t0 = ctx.currentTime;
+    const o = ctx.createOscillator(); const g = ctx.createGain();
+    o.type = "sine"; o.frequency.setValueAtTime(880, t0);
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.linearRampToValueAtTime(0.1, t0 + 0.012);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.35);
+    o.connect(g); g.connect(ctx.destination); o.start(t0); o.stop(t0 + 0.4);
+    setTimeout(() => ctx.close(), 600);
+  } catch (e) {}
 }
 
 /* ---------- Curriculum editing (foreman/owner) ---------- */
@@ -1897,7 +2295,7 @@ function moveBadge(srcRankId, badgeId, dstRankId) {
   if (i < 0) return;
   const [badge] = src.badges.splice(i, 1);
   dst.badges.push(badge);
-  saveCurriculum().then(() => { closeModal(); view = { name: "rank", id: dstRankId }; render(); });
+  saveCurriculum().then(() => { closeModal(); view = { name: "rank", rankId: dstRankId }; render(); });
 }
 function moveBadgeWithin(rankId, badgeId, dir) {
   const rank = curriculum.ranks.find(r => r.id === rankId);
@@ -1949,10 +2347,22 @@ function mentorTally(signoffs, windowDays) {
   const map = new Map();
   signoffs.forEach(s => {
     if (!s.trainerUid || s.ts < cutoff) return;
-    const cur = map.get(s.trainerUid) || { uid: s.trainerUid, name: s.trainerName || "Unknown", count: 0, lastTs: 0 };
+    const cur = map.get(s.trainerUid) || { uid: s.trainerUid, name: s.trainerName || "Unknown", count: 0, lastTs: 0, tsList: [] };
     cur.count++;
+    cur.tsList.push(s.ts);
     if (s.ts > cur.lastTs) { cur.lastTs = s.ts; if (s.trainerName) cur.name = s.trainerName; }
     map.set(s.trainerUid, cur);
+  });
+  // Flag sign-offs that came in runs of 3+ inside 5 minutes (possible rubber-stamping)
+  map.forEach(cur => {
+    const t = cur.tsList.slice().sort((a, b) => a - b);
+    const flagged = new Set();
+    for (let i = 0; i < t.length; i++) {
+      let j = i;
+      while (j + 1 < t.length && t[j + 1] - t[i] <= 5 * 60000) j++;
+      if (j - i + 1 >= 3) for (let k = i; k <= j; k++) flagged.add(k);
+    }
+    cur.quick = flagged.size;
   });
   return Array.from(map.values()).sort((a, b) => b.count - a.count);
 }
@@ -2034,7 +2444,9 @@ function renderDigest() {
       const tally30 = mentorTally(all, 30);
       const tally90 = mentorTally(all, 90);
       if (!tally30.length && !tally90.length) return '';
-      const row = t => '<li class="item" style="cursor:default"><div class="body"><div class="title">' + escapeHtml(t.name) + '</div><div class="sub">' + t.count + ' sign-off' + (t.count === 1 ? '' : 's') + ' · last ' + timeAgo(t.lastTs) + '</div></div></li>';
+      const row = t => '<li class="item" style="cursor:default"><div class="body"><div class="title">' + escapeHtml(t.name) + '</div><div class="sub">' + t.count + ' sign-off' + (t.count === 1 ? '' : 's') + ' · last ' + timeAgo(t.lastTs)
+        + (t.quick ? ' · <span class="quick-flag" title="Signed off 3 or more merits inside 5 minutes">⚑ ' + t.quick + ' rushed</span>' : '')
+        + '</div></div></li>';
       return '<div class="section-head" style="margin-top:32px"><h2>Mentor Activity</h2><span class="meta">Who is signing off work</span></div>'
         + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">'
         + '<div><h4 style="font:600 11px/1.4 inherit;letter-spacing:0.4px;text-transform:uppercase;color:var(--muted);margin:0 0 10px">Last 30 days</h4>'
@@ -2393,6 +2805,9 @@ window.moveBadge = moveBadge; window.moveBadgeWithin = moveBadgeWithin; window.m
 window.setRosterFilter = setRosterFilter; window.assignMentorSelf = assignMentorSelf; window.unassignMentor = unassignMentor; window.postFeedback = postFeedback;
 window.toggleBulk = toggleBulk; window.toggleBulkSel = toggleBulkSel; window.openBulkSignoff = openBulkSignoff; window.bulkSignOff = bulkSignOff;
 window.openDigest = openDigest; window.toggleLeadCrew = toggleLeadCrew;
+window.saveReqChecks = saveReqChecks; window.checkAllReqs = checkAllReqs; window.requestReview = requestReview;
+window.cancelReview = cancelReview; window.sendBack = sendBack; window.openReview = openReview;
+window.openPlanner = openPlanner; window.setPlannerBadge = setPlannerBadge; window.backFromPlanner = backFromPlanner;
 
 /* Apply Homestead branding once the DOM is ready */
 (function setupBrand(){
