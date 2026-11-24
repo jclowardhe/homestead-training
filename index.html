@@ -948,7 +948,9 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
 }
 .cc-link:hover { text-decoration: underline; }
 .add-crew { padding: 20px 22px; margin-bottom: 8px; }
-.add-crew-row { display: grid; grid-template-columns: 2fr 1fr auto; gap: 12px; align-items: end; }
+.add-crew-row { display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: end; max-width: 620px; }
+.setup-pending { color: var(--warn); }
+.setup-pending strong { letter-spacing: 2px; color: var(--text-strong); }
 .add-crew-row label { margin-top: 0; }
 @media (max-width: 640px) { .add-crew-row { grid-template-columns: 1fr; } }
 
@@ -1310,6 +1312,7 @@ function render() {
   if (!me) { renderAuth(); return; }
   if (!profile) { renderLoading("Loading your profile…"); return; }
   if (profile.archived) return renderArchived();
+  if (profile.pinLogin && profile.mustSetPin) return renderSetPin();
   if (curriculum === null) {
     renderLoading(isForeman() ? "Setting up the curriculum…" : "Waiting for your foreman to set up the curriculum…");
     return;
@@ -1423,7 +1426,7 @@ function renderPinPad() {
       <img class="auth-logo" src="${LOGO}" alt="Homestead Electric" />
       <div class="eyebrow"><span>Sign In</span><span class="sep">·</span><span class="sub">Field Manual</span></div>
       <h1 class="display">Hi, ${escapeHtml(first)}<span class="punct">.</span></h1>
-      <p class="subhead">Enter your 4-digit PIN.</p>
+      <p class="subhead">Enter your 4-digit PIN. First time? Use the setup code from your foreman.</p>
       <div class="setup-form pin-form">
         <input type="password" id="pinInput" class="pin-input" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" placeholder="••••" />
         <div class="auth-error" id="authErr"></div>
@@ -1521,30 +1524,35 @@ function renderOfficeAuth() {
 }
 
 /* ---------- Foreman: add crew logins, reset PINs ---------- */
+function newSetupCode() {
+  const n = (window.crypto && crypto.getRandomValues) ? crypto.getRandomValues(new Uint32Array(1))[0] : Math.floor(Math.random() * 1e9);
+  return String(n % 10000).padStart(4, "0");
+}
+
+/* Foreman/admin adds someone by name. The app makes a one-time setup code; he picks his own PIN on first sign-in. */
 async function addCrewMember() {
   const nameEl = document.getElementById("newCrewName");
-  const pinEl = document.getElementById("newCrewPin");
   const errEl = document.getElementById("newCrewErr");
   const name = (nameEl.value || "").trim().replace(/\s+/g, " ");
-  const pin = (pinEl.value || "").trim();
   if (name.length < 2) { errEl.textContent = "Enter his full name."; return; }
-  if (!validPin(pin)) { errEl.textContent = "The PIN must be 4 numbers."; return; }
   await loadPublicRoster();
   if (publicRoster.some(p => normName(p.name) === normName(name))) { errEl.textContent = name + " already has a login. Use Reset PIN instead."; return; }
   errEl.textContent = "Adding…";
   const id = newLoginId();
+  const code = newSetupCode();
   const sec = secondaryApp();
   try {
-    const cred = await sec.auth().createUserWithEmailAndPassword(crewEmail(id), pinPassword(pin));
+    const cred = await sec.auth().createUserWithEmailAndPassword(crewEmail(id), pinPassword(code));
     await sec.firestore().collection("users").doc(cred.user.uid).set({
       name: name, role: "apprentice", company: profile.company || "Homestead Electric",
-      startDate: localDateStr(), earnedBadges: {}, loginId: id, pinLogin: true,
+      startDate: localDateStr(), earnedBadges: {}, loginId: id, pinLogin: true, mustSetPin: true,
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     });
     await sec.auth().signOut();
+    await db.collection("setup").doc(cred.user.uid).set({ code: code, name: name, ts: Date.now() });
     await db.collection("public").doc("roster").set({ people: firebase.firestore.FieldValue.arrayUnion({ id: id, name: name, uid: cred.user.uid }) }, { merge: true });
     publicRoster = null;
-    showToast("Added " + name, "His PIN is " + pin + ". He picks his name and enters it.");
+    showToast("Added " + name, "Setup code " + code + ". He picks his own PIN after.");
     renderAdmin();
   } catch (e) {
     try { await sec.auth().signOut(); } catch (x) {}
@@ -1552,26 +1560,24 @@ async function addCrewMember() {
   }
 }
 
+/* Forgot PIN: new login with a fresh setup code, progress carried over, old login retired. */
 async function resetCrewPin(oldUid) {
   const oldSnap = await db.collection("users").doc(oldUid).get();
   if (!oldSnap.exists) return;
   const old = oldSnap.data();
-  const pin = (prompt("New 4-digit PIN for " + (old.name || "this person") + ":") || "").trim();
-  if (!pin) return;
-  if (!validPin(pin)) { alert("The PIN must be 4 numbers."); return; }
+  if (!confirm("Reset the PIN for " + (old.name || "this person") + "? He'll get a one-time setup code and pick a new PIN. His merits carry over.")) return;
   const id = newLoginId();
+  const code = newSetupCode();
   const sec = secondaryApp();
   try {
-    // 1) New login, created as the new user (security rules require that)
-    const cred = await sec.auth().createUserWithEmailAndPassword(crewEmail(id), pinPassword(pin));
+    const cred = await sec.auth().createUserWithEmailAndPassword(crewEmail(id), pinPassword(code));
     const newUid = cred.user.uid;
     await sec.firestore().collection("users").doc(newUid).set({
       name: old.name || "", role: "apprentice", company: old.company || "Homestead Electric",
-      startDate: old.startDate || localDateStr(), earnedBadges: {}, loginId: id, pinLogin: true,
+      startDate: old.startDate || localDateStr(), earnedBadges: {}, loginId: id, pinLogin: true, mustSetPin: true,
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     });
     await sec.auth().signOut();
-    // 2) Carry his progress over (foreman permission)
     const carry = {
       earnedBadges: old.earnedBadges || {}, reqChecks: old.reqChecks || {},
       reviewRequests: old.reviewRequests || {}, feedback: old.feedback || []
@@ -1579,18 +1585,66 @@ async function resetCrewPin(oldUid) {
     if (old.mentorUid) { carry.mentorUid = old.mentorUid; carry.mentorName = old.mentorName || ""; }
     if (old.role === "lead" || (isOwner() && (old.role === "foreman" || old.role === "admin"))) carry.role = old.role;
     await db.collection("users").doc(newUid).update(carry);
-    // 3) Retire the old login and swap the name list entry
     await db.collection("users").doc(oldUid).update({ archived: true, replacedBy: newUid });
+    await db.collection("setup").doc(newUid).set({ code: code, name: old.name || "", ts: Date.now() });
     const r = await db.collection("public").doc("roster").get();
     const people = ((r.exists && r.data().people) || []).filter(p => p.uid !== oldUid && normName(p.name) !== normName(old.name));
     people.push({ id: id, name: old.name || "", uid: newUid });
     await db.collection("public").doc("roster").set({ people: people }, { merge: true });
     publicRoster = null;
-    showToast("PIN reset for " + (old.name || "crew member"), "New PIN is " + pin + ". His merits carried over.");
+    showToast("PIN reset for " + (old.name || "crew member"), "Setup code " + code + ". His merits carried over.");
     renderAdmin();
   } catch (e) {
     try { await sec.auth().signOut(); } catch (x) {}
     alert("Could not reset the PIN: " + (e.message || e));
+  }
+}
+
+/* First sign-in with a setup code: he chooses his own PIN before anything else. */
+function renderSetPin() {
+  const first = String(profile.name || "").split(" ")[0];
+  C().innerHTML = `
+    <div class="setup-wrap">
+      <img class="auth-logo" src="${LOGO}" alt="Homestead Electric" />
+      <div class="eyebrow"><span>Welcome</span><span class="sep">·</span><span class="sub">Field Manual</span></div>
+      <h1 class="display">Pick your PIN, ${escapeHtml(first)}<span class="punct">.</span></h1>
+      <p class="subhead">Choose 4 numbers only you know. You'll use them to sign in from now on.</p>
+      <div class="setup-form pin-form">
+        <label for="newPin1">New PIN</label>
+        <input type="password" id="newPin1" class="pin-input" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" placeholder="••••" />
+        <label for="newPin2">Type it again</label>
+        <input type="password" id="newPin2" class="pin-input" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" placeholder="••••" />
+        <div class="auth-error" id="setPinErr"></div>
+        <div style="margin-top:16px; display:flex; justify-content:flex-end;">
+          <button class="primary" id="setPinGo">Save My PIN →</button>
+        </div>
+      </div>
+    </div>
+  `;
+  const a = document.getElementById("newPin1"), b = document.getElementById("newPin2"), err = document.getElementById("setPinErr");
+  [a, b].forEach(el => el.addEventListener("input", () => { el.value = el.value.replace(/\D/g, "").slice(0, 4); err.textContent = ""; }));
+  const go = () => saveOwnPin(a.value, b.value, err);
+  b.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); go(); } });
+  document.getElementById("setPinGo").addEventListener("click", go);
+  a.focus();
+}
+async function saveOwnPin(p1, p2, errEl) {
+  if (!validPin(p1)) { errEl.textContent = "Your PIN is 4 numbers."; return; }
+  if (p1 !== p2) { errEl.textContent = "Those don't match. Try again."; return; }
+  if (/^(\d)\1{3}$/.test(p1) || p1 === "1234") { errEl.textContent = "Pick something harder to guess than " + p1 + "."; return; }
+  errEl.textContent = "Saving…";
+  try {
+    await me.updatePassword(pinPassword(p1));
+    await db.collection("users").doc(me.uid).update({ mustSetPin: false });
+    showToast("PIN saved", "Use it next time you sign in.");
+  } catch (e) {
+    const c = (e && e.code) || "";
+    if (c.includes("requires-recent-login")) {
+      errEl.textContent = "For security, sign in again with your setup code, then pick your PIN.";
+      setTimeout(() => doLogout(), 2500);
+    } else {
+      errEl.textContent = "Could not save: " + (e.message || e);
+    }
   }
 }
 
@@ -2733,11 +2787,10 @@ function renderAdmin() {
     <button class="back-link" onclick="goHome()">Back</button>
     <div class="eyebrow"><span>Crew</span><span class="sep">·</span><span class="sub">Logins and roles</span></div>
     <h1 class="display">Manage Crew<span class="punct">.</span></h1>
-    <div class="section-head"><h2>Add a Crew Member</h2><span class="meta">He signs in with his name and PIN</span></div>
+    <div class="section-head"><h2>Add a Crew Member</h2><span class="meta">You get a one-time setup code. He picks his own PIN.</span></div>
     <div class="setup-form add-crew">
       <div class="add-crew-row">
         <div><label for="newCrewName">Full name</label><input type="text" id="newCrewName" placeholder="Same spelling as Command Center" /></div>
-        <div><label for="newCrewPin">4-digit PIN</label><input type="text" id="newCrewPin" inputmode="numeric" maxlength="4" placeholder="1234" /></div>
         <div class="add-crew-go"><button class="primary" onclick="addCrewMember()">Add →</button></div>
       </div>
       <div class="auth-error" id="newCrewErr"></div>
@@ -2747,11 +2800,13 @@ function renderAdmin() {
     <p class="subhead">Promote a trusted apprentice to <strong>Lead</strong>. Leads can pass others off on merits they've personally earned.${isOwner() ? " You can also make <strong>Foremen</strong> and <strong>Admins</strong>, who can sign off anything and manage the crew." : ""} Nobody can sign off their own work.</p>
     <ul class="item-list" id="adminList"><li class="loading-wrap"><div class="spin"></div></li></ul>
   `;
-  ["newCrewName", "newCrewPin"].forEach(id => {
+  ["newCrewName"].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); addCrewMember(); } });
   });
-  db.collection("users").get().then((snap) => {
+  let setupCodes = {};
+  Promise.all([db.collection("users").get(), db.collection("setup").get().catch(() => ({ docs: [] }))]).then(([snap, setupSnap]) => {
+    setupSnap.docs.forEach(d => { setupCodes[d.id] = d.data(); });
     const users = snap.docs.map(d => Object.assign({ id: d.id }, d.data())).filter(u => !u.archived);
     users.sort((a, b) => (a.role || "").localeCompare(b.role || "") || (a.name || "").localeCompare(b.name || ""));
     const list = document.getElementById("adminList");
@@ -2765,7 +2820,7 @@ function renderAdmin() {
       li.innerHTML = `
         <div class="body">
           <div class="title">${escapeHtml(u.name || u.email)}<span class="role-tag ${rtClass}">${escapeHtml(u.role || 'apprentice')}</span></div>
-          <div class="sub">${u.pinLogin ? "Signs in with name and PIN" : escapeHtml(u.email || "")}</div>
+          <div class="sub">${u.pinLogin ? (u.mustSetPin ? '<span class="setup-pending">Hasn\'t signed in yet · setup code <strong>' + escapeHtml((setupCodes[u.id] || {}).code || "····") + '</strong></span>' : "Signs in with name and PIN") : escapeHtml(u.email || "")}</div>
         </div>
         <div class="right" style="display:flex; gap:6px;"></div>
       `;
