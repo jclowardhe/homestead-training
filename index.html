@@ -1178,6 +1178,8 @@ window.toggleDevApprentice = function () {
 function isForeman() { return !__devApprenticeView && profile && (profile.role === "foreman" || profile.role === "owner"); }
 function isOwner()   { return !__devApprenticeView && !!me && me.email && me.email.toLowerCase() === OWNER_EMAIL; }
 function isLead()    { return !__devApprenticeView && profile && profile.role === "lead"; }
+/* Only foremen (any merit) and leads (merits they hold) sign off work. The owner account manages but does not sign off. */
+function isSignerForeman() { return !__devApprenticeView && profile && profile.role === "foreman"; }
 let leadCrewMode = false;
 
 /* ---------- Auth lifecycle ---------- */
@@ -1976,7 +1978,7 @@ function renderRankView(userData, rankId, foremanView) {
   const inRank = rank.badges.filter(b => earnedMap[b.id]).length;
   const totalInRank = rank.badges.length;
   const rankPct = totalInRank ? Math.round((inRank / totalInRank) * 100) : 0;
-  const canSignOff = foremanView && isForeman();
+  const canSignOff = foremanView && isSignerForeman();
   const bulkActive = bulkMode && canSignOff;
   const selCount = Object.keys(bulkSel).length;
 
@@ -2128,7 +2130,7 @@ function openBadge(userData, rankId, badgeId, foremanView) {
   const rank = curriculum.ranks.find(r => r.id === rankId);
   const badge = rank.badges.find(b => b.id === badgeId);
   const earned = (userData.earnedBadges || {})[badgeId];
-  const canSignOff = foremanView && (isForeman() || (isLead() && selectedAppId !== me.uid && !!(profile.earnedBadges || {})[badgeId]));
+  const canSignOff = foremanView && (isSignerForeman() || (isLead() && selectedAppId !== me.uid && !!(profile.earnedBadges || {})[badgeId]));
   const prog = reqProgress(userData, badge);
   const pending = pendingRequest(userData, badgeId);
   const isSelf = !foremanView;
@@ -2202,7 +2204,7 @@ function openBadge(userData, rankId, badgeId, foremanView) {
           <p class="locked-note">Your foreman gets a review request and signs off what he's seen.</p>
         </div>`;
   } else {
-    bottom = pendingBox + '<p class="locked-note">' + (isLead() ? "You can pass this off once you've earned it yourself." : "A foreman, or a lead who holds this merit, signs it off.") + '</p>';
+    bottom = pendingBox + '<p class="locked-note">' + (isLead() ? "You can pass this off once you've earned it yourself." : "Only a foreman, or a lead who holds this merit, can sign this off.") + '</p>';
   }
 
   let footLeft = "";
@@ -2360,7 +2362,7 @@ function pendingReviews() {
       if ((a.earnedBadges || {})[bid]) return;
       const b = findBadge(bid);
       if (!b) return;
-      if (!isForeman() && !(profile.earnedBadges || {})[bid]) return; // leads only see what they can sign off
+      if (isLead() && !(profile.earnedBadges || {})[bid]) return; // leads only see what they can sign off
       const rank = curriculum.ranks.find(r => r.badges.some(x => x.id === bid));
       out.push({ a: a, badge: b, rankId: rank ? rank.id : null, rankName: rank ? rank.name : "", note: (rr[bid] || {}).note || "", ts: (rr[bid] || {}).ts || 0 });
     });
@@ -2410,7 +2412,7 @@ function renderPlanner() {
     });
     rows.sort((x, y) => (y.pending - x.pending) || (y.p.seen - x.p.seen) || (x.left - y.left) || (x.a.name || "").localeCompare(y.a.name || ""));
   }
-  const leadCantSign = isLead() && badge && !(profile.earnedBadges || {})[badge.id];
+  const leadCantSign = badge && !isSignerForeman() && !(isLead() && (profile.earnedBadges || {})[badge.id]);
   C().innerHTML = `
     ${topBar()}
     <button class="back-link" onclick="backFromPlanner()">Back to crew</button>
@@ -2422,7 +2424,7 @@ function renderPlanner() {
       <select id="plannerSel" onchange="setPlannerBadge(this.value)">${opts}</select>
       ${badge && (badge.reqs || []).length ? '<div class="planner-reqs"><span>Watch for:</span> ' + badge.reqs.map(escapeHtml).join(' · ') + '</div>' : ''}
     </div>
-    ${leadCantSign ? '<div class="edit-banner">You haven\'t earned this one yet, so a foreman will need to sign it off.</div>' : ''}
+    ${leadCantSign ? '<div class="edit-banner">' + (isLead() ? "You haven't earned this one yet, so a foreman will need to sign it off." : "Only a foreman, or a lead who holds this merit, can sign it off.") + '</div>' : ''}
     <div class="section-head"><h2>Still Needs It</h2><span class="meta">${rows.length} need it · ${haveCount} have it</span></div>
     <ul class="item-list" id="plannerList"></ul>
   `;
