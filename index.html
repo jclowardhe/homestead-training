@@ -932,6 +932,26 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
 .planner-reqs { font-size: 13px; color: var(--muted); margin-top: 10px; max-width: 760px; }
 .planner-reqs span { font-weight: 700; color: var(--text); }
 
+/* ===== Crew sign-in ===== */
+.crew-pick { margin-top: 12px; }
+.crew-pick .item { padding: 12px 16px; }
+.crew-pick .item::before { display: none; }
+#crewSearch { max-width: 420px; }
+.pin-form { max-width: 360px; }
+.pin-input {
+  font-size: 28px !important; letter-spacing: 14px; text-align: center;
+  font-weight: 700; padding: 14px 12px !important;
+}
+.cc-link {
+  font-size: 13px; font-weight: 600; color: var(--accent); text-decoration: none;
+  margin-right: 8px;
+}
+.cc-link:hover { text-decoration: underline; }
+.add-crew { padding: 20px 22px; margin-bottom: 8px; }
+.add-crew-row { display: grid; grid-template-columns: 2fr 1fr auto; gap: 12px; align-items: end; }
+.add-crew-row label { margin-top: 0; }
+@media (max-width: 640px) { .add-crew-row { grid-template-columns: 1fr; } }
+
 /* ===== Toast ===== */
 .toast {
   position: fixed; left: 50%; bottom: 24px; z-index: 400;
@@ -1132,7 +1152,7 @@ let apprentices = [];   // foreman roster
 let selectedAppId = null, selectedAppData = null; // foreman: viewing one apprentice
 let view = { name: "home", rankId: null };
 let editMode = false;
-let authMode = "login";
+let authMode = "pick";
 let progressView = (function(){ try { return localStorage.getItem("htView") || "map"; } catch(e){ return "map"; } })();
 let rosterFilter = "mine";
 let bulkMode = false;
@@ -1164,7 +1184,7 @@ let leadCrewMode = false;
 auth.onAuthStateChanged((user) => {
   cleanup();
   me = user;
-  if (!user) { profile = null; authMode = "login"; renderAuth(); return; }
+  if (!user) { profile = null; authMode = "pick"; pinTarget = null; publicRoster = null; renderAuth(); return; }
   renderLoading("Connecting…");
   subscribeProfile(user.uid);
 });
@@ -1241,7 +1261,7 @@ function subscribeCurriculum() {
 function subscribeRoster() {
   if (rosterSubbed) return; rosterSubbed = true;
   unsubRoster = db.collection("users").where("role", "in", ["apprentice", "lead"]).onSnapshot((snap) => {
-    apprentices = snap.docs.map(d => Object.assign({ id: d.id }, d.data()));
+    apprentices = snap.docs.map(d => Object.assign({ id: d.id }, d.data())).filter(a => !a.archived);
     apprentices.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
     render();
   }, (err) => { renderError(err.message); });
@@ -1287,6 +1307,7 @@ function friendlyAuthError(e) {
 function render() {
   if (!me) { renderAuth(); return; }
   if (!profile) { renderLoading("Loading your profile…"); return; }
+  if (profile.archived) return renderArchived();
   if (curriculum === null) {
     renderLoading(isForeman() ? "Setting up the curriculum…" : "Waiting for your foreman to set up the curriculum…");
     return;
@@ -1314,15 +1335,139 @@ function renderError(msg) {
   C().innerHTML = '<div class="loading-wrap"><div class="msg" style="color:var(--magenta)">Error</div><p class="subhead" style="margin-top:14px">' + escapeHtml(msg) + '</p><button onclick="location.reload()">Reload</button></div>';
 }
 
+/* ---------- Crew PIN logins ----------
+   Each crew member gets a real Firebase login so the security rules still apply.
+   The "email" is synthetic (never receives mail) and the password is the PIN plus
+   a fixed suffix, because Firebase requires at least 6 characters. */
+const PIN_SUFFIX = "::fm";
+const CREW_DOMAIN = "homestead-training.firebaseapp.com";
+const CC_URL = "https://homestead-electric.vercel.app/";
+function crewEmail(loginId) { return "crew-" + loginId + "@" + CREW_DOMAIN; }
+function pinPassword(pin) { return String(pin) + PIN_SUFFIX; }
+function newLoginId() { return Math.random().toString(36).slice(2, 8) + Date.now().toString(36).slice(-4); }
+function validPin(pin) { return /^\d{4}$/.test(String(pin || "")); }
+function normName(s) { return String(s || "").trim().toLowerCase().replace(/\s+/g, " "); }
+function secondaryApp() {
+  return firebase.apps.find(a => a.name === "crewAdmin") || firebase.initializeApp(firebaseConfig, "crewAdmin");
+}
+
+/* Arrivals from Command Center: ?from=command-center&who=First%20Last */
+const __params = new URLSearchParams(location.search);
+const ccWho = __params.get("who") || "";
+let arrivalWho = ccWho;
+(function () { try { if (__params.get("from") === "command-center") localStorage.setItem("fmFromCC", "1"); } catch (e) {} })();
+function fromCommandCenter() { try { return localStorage.getItem("fmFromCC") === "1"; } catch (e) { return false; } }
+function switchToArrival() { arrivalWho = ccWho; doLogout(); }
+
+/* Public list of crew names for the sign-in screen (no PINs, readable without login) */
+let publicRoster = null;
+function loadPublicRoster() {
+  return db.collection("public").doc("roster").get()
+    .then(s => { publicRoster = ((s.exists && s.data().people) || []).slice().sort((a, b) => (a.name || "").localeCompare(b.name || "")); return publicRoster; })
+    .catch(() => { publicRoster = []; return publicRoster; });
+}
+
 /* ---------- Auth screen ---------- */
+let pinTarget = null;
 function renderAuth() {
+  if (authMode === "login" || authMode === "signup") return renderOfficeAuth();
+  if (publicRoster === null) {
+    renderLoading("Loading the crew…");
+    loadPublicRoster().then(() => { if (!me) renderAuth(); });
+    return;
+  }
+  if (arrivalWho) {
+    const hit = publicRoster.find(p => normName(p.name) === normName(arrivalWho));
+    arrivalWho = "";
+    if (hit) { pinTarget = hit; authMode = "pin"; }
+  }
+  if (authMode === "pin" && pinTarget) return renderPinPad();
+  authMode = "pick";
+  C().innerHTML = `
+    <div class="setup-wrap">
+      <img class="auth-logo" src="${LOGO}" alt="Homestead Electric" />
+      <div class="eyebrow"><span>Sign In</span><span class="sep">·</span><span class="sub">Field Manual</span></div>
+      <h1 class="display">Who are you<span class="punct">?</span></h1>
+      <p class="subhead">Tap your name, then enter your PIN.</p>
+      <input type="text" id="crewSearch" placeholder="Type your name" autocomplete="off" />
+      <ul class="item-list crew-pick" id="crewPick"></ul>
+      <div class="auth-toggle">Office staff or a lead with a company email? <a id="toOffice">Sign in with email</a></div>
+    </div>
+  `;
+  const list = document.getElementById("crewPick");
+  const draw = (q) => {
+    const nq = normName(q);
+    const rows = publicRoster.filter(p => !nq || normName(p.name).includes(nq));
+    if (!publicRoster.length) { list.innerHTML = '<p class="subhead">No crew logins yet. Ask your foreman to add you.</p>'; return; }
+    if (!rows.length) { list.innerHTML = '<p class="subhead">No one by that name. Ask your foreman to add you.</p>'; return; }
+    list.innerHTML = "";
+    rows.forEach(p => {
+      const li = document.createElement("li");
+      li.className = "item";
+      li.innerHTML = '<div class="body"><div class="title">' + escapeHtml(p.name) + '</div></div><div class="arrow">▶</div>';
+      li.addEventListener("click", () => { pinTarget = p; authMode = "pin"; renderAuth(); });
+      list.appendChild(li);
+    });
+  };
+  draw("");
+  document.getElementById("crewSearch").addEventListener("input", e => draw(e.target.value));
+  document.getElementById("toOffice").addEventListener("click", () => { authMode = "login"; renderAuth(); });
+}
+
+function renderPinPad() {
+  const first = String(pinTarget.name || "").split(" ")[0];
+  C().innerHTML = `
+    <div class="setup-wrap">
+      <img class="auth-logo" src="${LOGO}" alt="Homestead Electric" />
+      <div class="eyebrow"><span>Sign In</span><span class="sep">·</span><span class="sub">Field Manual</span></div>
+      <h1 class="display">Hi, ${escapeHtml(first)}<span class="punct">.</span></h1>
+      <p class="subhead">Enter your 4-digit PIN.</p>
+      <div class="setup-form pin-form">
+        <input type="password" id="pinInput" class="pin-input" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" placeholder="••••" />
+        <div class="auth-error" id="authErr"></div>
+        <div style="margin-top:16px; display:flex; justify-content:flex-end;">
+          <button class="primary" id="pinGo">Sign In →</button>
+        </div>
+      </div>
+      <div class="auth-toggle">Not ${escapeHtml(first)}? <a id="toPick">Pick your name</a> · Forgot your PIN? Ask your foreman to reset it.</div>
+    </div>
+  `;
+  const input = document.getElementById("pinInput");
+  const errEl = document.getElementById("authErr");
+  const go = () => doPinLogin(pinTarget, input.value, errEl);
+  input.focus();
+  input.addEventListener("input", () => {
+    input.value = input.value.replace(/\D/g, "").slice(0, 4);
+    errEl.textContent = "";
+    if (input.value.length === 4) go();
+  });
+  input.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); go(); } });
+  document.getElementById("pinGo").addEventListener("click", go);
+  document.getElementById("toPick").addEventListener("click", () => { pinTarget = null; authMode = "pick"; renderAuth(); });
+}
+
+function doPinLogin(p, pin, errEl) {
+  if (!validPin(pin)) { errEl.textContent = "Your PIN is 4 numbers."; return; }
+  errEl.textContent = "Signing in…";
+  auth.signInWithEmailAndPassword(crewEmail(p.id), pinPassword(pin))
+    .catch(e => {
+      const c = (e && e.code) || "";
+      if (c.includes("too-many-requests")) errEl.textContent = "Too many tries. Wait a few minutes or ask your foreman.";
+      else if (c.includes("network")) errEl.textContent = "No connection. Check your signal and try again.";
+      else errEl.textContent = "That PIN isn't right.";
+      const inp = document.getElementById("pinInput"); if (inp) { inp.value = ""; inp.focus(); }
+    });
+}
+
+/* Email/password sign-in for office staff and leads with company email */
+function renderOfficeAuth() {
   const signup = authMode === "signup";
   C().innerHTML = `
     <div class="setup-wrap">
       <img class="auth-logo" src="${LOGO}" alt="Homestead Electric" />
-      <div class="eyebrow"><span>${signup ? "Create Account" : "Sign In"}</span><span class="sep">·</span><span class="sub">Field Manual</span></div>
+      <div class="eyebrow"><span>${signup ? "Create Account" : "Office Sign In"}</span><span class="sep">·</span><span class="sub">Field Manual</span></div>
       <h1 class="display">${signup ? "Join the Crew" : "Welcome Back"}<span class="punct">.</span></h1>
-      <p class="subhead">${signup ? "Make your account to start earning merits. New members join as apprentices." : "Log in to see your progress and earn merits."}</p>
+      <p class="subhead">${signup ? "Make an email account. New members join as apprentices." : "Sign in with your email and password."}</p>
       <div class="setup-form">
         ${signup ? `
           <label for="aName">Full Name</label>
@@ -1342,7 +1487,8 @@ function renderAuth() {
         </div>
       </div>
       <div class="auth-toggle">
-        ${signup ? "Already have an account? <a id='toLogin'>Log in</a>" : "New here? <a id='toSignup'>Create an account</a>"}
+        ${signup ? "Already have an account? <a id='toLogin'>Log in</a>" : "Need an email account? <a id='toSignup'>Create one</a>"}
+        · <a id="toCrew">Back to crew sign-in</a>
       </div>
     </div>
   `;
@@ -1369,6 +1515,102 @@ function renderAuth() {
   const toL = document.getElementById("toLogin");
   if (toS) toS.addEventListener("click", () => { authMode = "signup"; renderAuth(); });
   if (toL) toL.addEventListener("click", () => { authMode = "login"; renderAuth(); });
+  document.getElementById("toCrew").addEventListener("click", () => { authMode = "pick"; renderAuth(); });
+}
+
+/* ---------- Foreman: add crew logins, reset PINs ---------- */
+async function addCrewMember() {
+  const nameEl = document.getElementById("newCrewName");
+  const pinEl = document.getElementById("newCrewPin");
+  const errEl = document.getElementById("newCrewErr");
+  const name = (nameEl.value || "").trim().replace(/\s+/g, " ");
+  const pin = (pinEl.value || "").trim();
+  if (name.length < 2) { errEl.textContent = "Enter his full name."; return; }
+  if (!validPin(pin)) { errEl.textContent = "The PIN must be 4 numbers."; return; }
+  await loadPublicRoster();
+  if (publicRoster.some(p => normName(p.name) === normName(name))) { errEl.textContent = name + " already has a login. Use Reset PIN instead."; return; }
+  errEl.textContent = "Adding…";
+  const id = newLoginId();
+  const sec = secondaryApp();
+  try {
+    const cred = await sec.auth().createUserWithEmailAndPassword(crewEmail(id), pinPassword(pin));
+    await sec.firestore().collection("users").doc(cred.user.uid).set({
+      name: name, role: "apprentice", company: profile.company || "Homestead Electric",
+      startDate: localDateStr(), earnedBadges: {}, loginId: id, pinLogin: true,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    await sec.auth().signOut();
+    await db.collection("public").doc("roster").set({ people: firebase.firestore.FieldValue.arrayUnion({ id: id, name: name, uid: cred.user.uid }) }, { merge: true });
+    publicRoster = null;
+    showToast("Added " + name, "His PIN is " + pin + ". He picks his name and enters it.");
+    renderAdmin();
+  } catch (e) {
+    try { await sec.auth().signOut(); } catch (x) {}
+    errEl.textContent = "Could not add: " + (e.message || e);
+  }
+}
+
+async function resetCrewPin(oldUid) {
+  const oldSnap = await db.collection("users").doc(oldUid).get();
+  if (!oldSnap.exists) return;
+  const old = oldSnap.data();
+  const pin = (prompt("New 4-digit PIN for " + (old.name || "this person") + ":") || "").trim();
+  if (!pin) return;
+  if (!validPin(pin)) { alert("The PIN must be 4 numbers."); return; }
+  const id = newLoginId();
+  const sec = secondaryApp();
+  try {
+    // 1) New login, created as the new user (security rules require that)
+    const cred = await sec.auth().createUserWithEmailAndPassword(crewEmail(id), pinPassword(pin));
+    const newUid = cred.user.uid;
+    await sec.firestore().collection("users").doc(newUid).set({
+      name: old.name || "", role: "apprentice", company: old.company || "Homestead Electric",
+      startDate: old.startDate || localDateStr(), earnedBadges: {}, loginId: id, pinLogin: true,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    await sec.auth().signOut();
+    // 2) Carry his progress over (foreman permission)
+    const carry = {
+      earnedBadges: old.earnedBadges || {}, reqChecks: old.reqChecks || {},
+      reviewRequests: old.reviewRequests || {}, feedback: old.feedback || []
+    };
+    if (old.mentorUid) { carry.mentorUid = old.mentorUid; carry.mentorName = old.mentorName || ""; }
+    if (old.role === "lead" || (isOwner() && old.role === "foreman")) carry.role = old.role;
+    await db.collection("users").doc(newUid).update(carry);
+    // 3) Retire the old login and swap the name list entry
+    await db.collection("users").doc(oldUid).update({ archived: true, replacedBy: newUid });
+    const r = await db.collection("public").doc("roster").get();
+    const people = ((r.exists && r.data().people) || []).filter(p => p.uid !== oldUid && normName(p.name) !== normName(old.name));
+    people.push({ id: id, name: old.name || "", uid: newUid });
+    await db.collection("public").doc("roster").set({ people: people }, { merge: true });
+    publicRoster = null;
+    showToast("PIN reset for " + (old.name || "crew member"), "New PIN is " + pin + ". His merits carried over.");
+    renderAdmin();
+  } catch (e) {
+    try { await sec.auth().signOut(); } catch (x) {}
+    alert("Could not reset the PIN: " + (e.message || e));
+  }
+}
+
+async function changeMyPin() {
+  if (!profile || !profile.pinLogin) return;
+  const cur = (prompt("Your current PIN:") || "").trim();
+  if (!cur) return;
+  const next = (prompt("Your new 4-digit PIN:") || "").trim();
+  if (!validPin(next)) { alert("The PIN must be 4 numbers."); return; }
+  try {
+    await me.reauthenticateWithCredential(firebase.auth.EmailAuthProvider.credential(me.email, pinPassword(cur)));
+    await me.updatePassword(pinPassword(next));
+    showToast("PIN changed", "Use your new PIN next time you sign in.");
+  } catch (e) {
+    alert(((e && e.code) || "").includes("too-many") ? "Too many tries. Wait a few minutes." : "Your current PIN wasn't right.");
+  }
+}
+
+function renderArchived() {
+  C().innerHTML = '<div class="loading-wrap"><div class="msg">This login was replaced</div>'
+    + '<p class="subhead" style="margin-top:12px">Your foreman reset your PIN. Sign in with your name and the new PIN he gave you.</p>'
+    + '<button class="primary" onclick="doLogout()">Sign In Again</button></div>';
 }
 
 /* ---------- Top bar (logged in) ---------- */
@@ -1377,7 +1619,10 @@ function topBar() {
   const roleClass = isForeman() ? "foreman" : (isLead() ? "lead" : "");
   return `
     <div class="toolbar">
+      ${fromCommandCenter() ? `<a class="cc-link" href="${CC_URL}">← Command Center</a>` : ""}
       <span class="who">${escapeHtml(profile.name || me.email)}<span class="role-tag ${roleClass}">${roleLabel}</span></span>
+      ${(ccWho && normName(ccWho) !== normName(profile.name)) ? `<button class="ghost" onclick="switchToArrival()">Switch to ${escapeHtml(ccWho.trim().split(" ")[0].replace(/^./, c => c.toUpperCase()))}</button>` : ""}
+      ${profile.pinLogin ? `<button class="ghost" onclick="changeMyPin()">Change PIN</button>` : ""}
       ${isLead() ? `<button class="ghost" onclick="toggleLeadCrew()">${leadCrewMode ? "My Progress" : "Pass Off Crew"}</button>` : ""}
       ${(isForeman() || isLead()) ? `<button class="ghost" onclick="openPlanner()">Planner</button>` : ""}
       ${isForeman() ? `<button class="ghost" onclick="openDigest()">This Week</button>` : ""}
@@ -2484,13 +2729,28 @@ function renderAdmin() {
   C().innerHTML = `
     ${topBar()}
     <button class="back-link" onclick="goHome()">Back</button>
-    <div class="eyebrow"><span>Crew</span><span class="sep">·</span><span class="sub">Roles</span></div>
-    <h1 class="display">CREW ROLES<span class="punct">.</span></h1>
-    <p class="subhead">Promote a trusted apprentice to <strong>Lead</strong> — Leads can pass others off on merits they've personally earned.${isOwner() ? " Owners can also make Foremen, who can sign off anything." : ""} Nobody can sign off their own work.</p>
+    <div class="eyebrow"><span>Crew</span><span class="sep">·</span><span class="sub">Logins and roles</span></div>
+    <h1 class="display">Manage Crew<span class="punct">.</span></h1>
+    <div class="section-head"><h2>Add a Crew Member</h2><span class="meta">He signs in with his name and PIN</span></div>
+    <div class="setup-form add-crew">
+      <div class="add-crew-row">
+        <div><label for="newCrewName">Full name</label><input type="text" id="newCrewName" placeholder="Same spelling as Command Center" /></div>
+        <div><label for="newCrewPin">4-digit PIN</label><input type="text" id="newCrewPin" inputmode="numeric" maxlength="4" placeholder="1234" /></div>
+        <div class="add-crew-go"><button class="primary" onclick="addCrewMember()">Add →</button></div>
+      </div>
+      <div class="auth-error" id="newCrewErr"></div>
+      <p class="locked-note" style="margin-top:6px">Use the same spelling as Command Center so the Field Manual button there takes him straight to his PIN.</p>
+    </div>
+    <div class="section-head" style="margin-top:28px"><h2>Roles</h2></div>
+    <p class="subhead">Promote a trusted apprentice to <strong>Lead</strong>. Leads can pass others off on merits they've personally earned.${isOwner() ? " Owners can also make Foremen, who can sign off anything." : ""} Nobody can sign off their own work.</p>
     <ul class="item-list" id="adminList"><li class="loading-wrap"><div class="spin"></div></li></ul>
   `;
+  ["newCrewName", "newCrewPin"].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); addCrewMember(); } });
+  });
   db.collection("users").get().then((snap) => {
-    const users = snap.docs.map(d => Object.assign({ id: d.id }, d.data()));
+    const users = snap.docs.map(d => Object.assign({ id: d.id }, d.data())).filter(u => !u.archived);
     users.sort((a, b) => (a.role || "").localeCompare(b.role || "") || (a.name || "").localeCompare(b.name || ""));
     const list = document.getElementById("adminList");
     list.innerHTML = "";
@@ -2503,7 +2763,7 @@ function renderAdmin() {
       li.innerHTML = `
         <div class="body">
           <div class="title">${escapeHtml(u.name || u.email)}<span class="role-tag ${rtClass}">${escapeHtml(u.role || 'apprentice')}</span></div>
-          <div class="sub">${escapeHtml(u.email || "")}</div>
+          <div class="sub">${u.pinLogin ? "Signs in with name and PIN" : escapeHtml(u.email || "")}</div>
         </div>
         <div class="right" style="display:flex; gap:6px;"></div>
       `;
@@ -2523,6 +2783,13 @@ function renderAdmin() {
         if (role === "apprentice") { addBtn("Make Lead", "lead", true); if (owner) addBtn("Make Foreman", "foreman", false); }
         else if (role === "lead") { addBtn("Make Apprentice", "apprentice", true); if (owner) addBtn("Make Foreman", "foreman", false); }
         else if (role === "foreman") { if (owner) addBtn("Make Apprentice", "apprentice", true); else actions.innerHTML = '<span class="role-tag foreman">Foreman</span>'; }
+        if (u.pinLogin && (role !== "foreman" || owner)) {
+          const rb = document.createElement("button");
+          rb.className = "ghost";
+          rb.textContent = "Reset PIN";
+          rb.onclick = () => resetCrewPin(u.id);
+          actions.appendChild(rb);
+        }
       }
       list.appendChild(li);
     });
@@ -2808,6 +3075,7 @@ window.openDigest = openDigest; window.toggleLeadCrew = toggleLeadCrew;
 window.saveReqChecks = saveReqChecks; window.checkAllReqs = checkAllReqs; window.requestReview = requestReview;
 window.cancelReview = cancelReview; window.sendBack = sendBack; window.openReview = openReview;
 window.openPlanner = openPlanner; window.setPlannerBadge = setPlannerBadge; window.backFromPlanner = backFromPlanner;
+window.addCrewMember = addCrewMember; window.resetCrewPin = resetCrewPin; window.changeMyPin = changeMyPin; window.switchToArrival = switchToArrival;
 
 /* Apply Homestead branding once the DOM is ready */
 (function setupBrand(){
