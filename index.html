@@ -954,6 +954,16 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
 .add-crew-row label { margin-top: 0; }
 @media (max-width: 640px) { .add-crew-row { grid-template-columns: 1fr; } }
 
+/* ===== Crew code + first-time sign-in ===== */
+.first-tag { color: var(--accent); border-color: var(--accent); background: var(--accent-soft); }
+.code-input { letter-spacing: 10px; }
+.crew-code-box { padding: 20px 22px; }
+.crew-code-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.crew-code { font-size: 34px; font-weight: 800; letter-spacing: 8px; color: var(--text-strong); font-variant-numeric: tabular-nums; }
+.crew-code-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.rollout-text { margin-top: 14px; font-size: 13px; color: var(--muted); background: var(--surface); resize: none; }
+#newPeople { min-height: 70px; }
+
 /* ===== Toast ===== */
 .toast {
   position: fixed; left: 50%; bottom: 24px; z-index: 400;
@@ -1188,7 +1198,7 @@ let leadCrewMode = false;
 auth.onAuthStateChanged((user) => {
   cleanup();
   me = user;
-  if (!user) { profile = null; authMode = "pick"; pinTarget = null; publicRoster = null; renderAuth(); return; }
+  if (!user) { profile = null; if (!pendingFirst) { authMode = "pick"; pinTarget = null; } people = null; renderAuth(); return; }
   renderLoading("Connecting…");
   subscribeProfile(user.uid);
 });
@@ -1205,7 +1215,15 @@ function cleanup() {
 
 function subscribeProfile(uid) {
   unsubProfile = db.collection("users").doc(uid).onSnapshot((snap) => {
-    if (!snap.exists) { renderLoading("Setting up your account…"); return; }
+    if (!snap.exists) {
+      const lid = loginIdFromEmail(me && me.email);
+      if (lid && !claimInProgress) {
+        renderLoading("Finishing your setup…");
+        finishCrewSetup(lid).catch(e => renderError("Could not finish setting up your login: " + (e.message || e)));
+        return;
+      }
+      renderLoading("Setting up your account…"); return;
+    }
     profile = snap.data();
     if (profile.role === "apprentice" || profile.role === "lead") {
       const ids = Object.keys(profile.earnedBadges || {});
@@ -1312,7 +1330,6 @@ function render() {
   if (!me) { renderAuth(); return; }
   if (!profile) { renderLoading("Loading your profile…"); return; }
   if (profile.archived) return renderArchived();
-  if (profile.pinLogin && profile.mustSetPin) return renderSetPin();
   if (curriculum === null) {
     renderLoading(isForeman() ? "Setting up the curriculum…" : "Waiting for your foreman to set up the curriculum…");
     return;
@@ -1340,20 +1357,28 @@ function renderError(msg) {
   C().innerHTML = '<div class="loading-wrap"><div class="msg" style="color:var(--magenta)">Error</div><p class="subhead" style="margin-top:14px">' + escapeHtml(msg) + '</p><button onclick="location.reload()">Reload</button></div>';
 }
 
-/* ---------- Crew PIN logins ----------
-   Each crew member gets a real Firebase login so the security rules still apply.
-   The "email" is synthetic (never receives mail) and the password is the PIN plus
-   a fixed suffix, because Firebase requires at least 6 characters. */
+/* ---------- Crew sign-in ----------
+   The crew list lives in people/{loginId} (names and planned roles, readable by anyone).
+   Nobody has a login until they set it up themselves: tap their name, enter the company
+   crew code, pick a PIN. Firebase checks the crew code (security rules), not just the app.
+   Each login is a real Firebase account: synthetic email + PIN with a fixed suffix
+   (Firebase needs 6+ characters). */
 const PIN_SUFFIX = "::fm";
 const CREW_DOMAIN = "homestead-training.firebaseapp.com";
 const CC_URL = "https://homestead-electric.vercel.app/";
+const APP_URL = "https://jclowardhe.github.io/homestead-training/";
 function crewEmail(loginId) { return "crew-" + loginId + "@" + CREW_DOMAIN; }
+function loginIdFromEmail(email) { const m = /^crew-([a-z0-9]+)@/.exec(String(email || "")); return m ? m[1] : null; }
 function pinPassword(pin) { return String(pin) + PIN_SUFFIX; }
 function newLoginId() { return Math.random().toString(36).slice(2, 8) + Date.now().toString(36).slice(-4); }
 function validPin(pin) { return /^\d{4}$/.test(String(pin || "")); }
+function weakPin(pin) { return /^(\d)\1{3}$/.test(pin) || ["1234", "4321", "0123", "2580"].includes(pin); }
 function normName(s) { return String(s || "").trim().toLowerCase().replace(/\s+/g, " "); }
-function secondaryApp() {
-  return firebase.apps.find(a => a.name === "crewAdmin") || firebase.initializeApp(firebaseConfig, "crewAdmin");
+function randomDigits(n) {
+  let out = "";
+  const buf = (window.crypto && crypto.getRandomValues) ? crypto.getRandomValues(new Uint32Array(n)) : Array.from({ length: n }, () => Math.floor(Math.random() * 1e9));
+  for (let i = 0; i < n; i++) out += String(buf[i] % 10);
+  return out;
 }
 
 /* Arrivals from Command Center: ?from=command-center&who=First%20Last */
@@ -1364,53 +1389,58 @@ let arrivalWho = ccWho;
 function fromCommandCenter() { try { return localStorage.getItem("fmFromCC") === "1"; } catch (e) { return false; } }
 function switchToArrival() { arrivalWho = ccWho; doLogout(); }
 
-/* Public list of crew names for the sign-in screen (no PINs, readable without login) */
-let publicRoster = null;
-function loadPublicRoster() {
-  return db.collection("public").doc("roster").get()
-    .then(s => { publicRoster = ((s.exists && s.data().people) || []).slice().sort((a, b) => (a.name || "").localeCompare(b.name || "")); return publicRoster; })
-    .catch(() => { publicRoster = []; return publicRoster; });
+/* Crew list for the sign-in screen */
+let people = null;
+function loadPeople() {
+  return db.collection("people").get()
+    .then(s => { people = s.docs.map(d => Object.assign({ id: d.id }, d.data())).sort((a, b) => (a.name || "").localeCompare(b.name || "")); return people; })
+    .catch(() => { people = []; return people; });
 }
 
-/* ---------- Auth screen ---------- */
+/* ---------- Auth screens ---------- */
 let pinTarget = null;
+let pendingFirst = null;   // { person, err } to reopen the first-time screen after a failed attempt
+let claimInProgress = false;
+
 function renderAuth() {
   if (authMode === "login" || authMode === "signup") return renderOfficeAuth();
-  if (publicRoster === null) {
+  if (people === null) {
     renderLoading("Loading the crew…");
-    loadPublicRoster().then(() => { if (!me) renderAuth(); });
+    loadPeople().then(() => { if (!me) renderAuth(); });
     return;
   }
+  if (pendingFirst) { pinTarget = pendingFirst.person; authMode = "first"; }
   if (arrivalWho) {
-    const hit = publicRoster.find(p => normName(p.name) === normName(arrivalWho));
+    const hit = people.find(p => normName(p.name) === normName(arrivalWho));
     arrivalWho = "";
-    if (hit) { pinTarget = hit; authMode = "pin"; }
+    if (hit) { pinTarget = hit; authMode = hit.uid ? "pin" : "first"; }
   }
   if (authMode === "pin" && pinTarget) return renderPinPad();
+  if (authMode === "first" && pinTarget) return renderFirstTime();
   authMode = "pick";
   C().innerHTML = `
     <div class="setup-wrap">
       <img class="auth-logo" src="${LOGO}" alt="Homestead Electric" />
       <div class="eyebrow"><span>Sign In</span><span class="sep">·</span><span class="sub">Field Manual</span></div>
       <h1 class="display">Who are you<span class="punct">?</span></h1>
-      <p class="subhead">Tap your name, then enter your PIN.</p>
+      <p class="subhead">Tap your name. First time? You'll need the crew code.</p>
       <input type="text" id="crewSearch" placeholder="Type your name" autocomplete="off" />
       <ul class="item-list crew-pick" id="crewPick"></ul>
-      <div class="auth-toggle">Office staff or a lead with a company email? <a id="toOffice">Sign in with email</a></div>
+      <div class="auth-toggle">Office staff with a company email? <a id="toOffice">Sign in with email</a></div>
     </div>
   `;
   const list = document.getElementById("crewPick");
   const draw = (q) => {
     const nq = normName(q);
-    const rows = publicRoster.filter(p => !nq || normName(p.name).includes(nq));
-    if (!publicRoster.length) { list.innerHTML = '<p class="subhead">No crew logins yet. Ask your foreman to add you.</p>'; return; }
+    const rows = people.filter(p => !nq || normName(p.name).includes(nq));
+    if (!people.length) { list.innerHTML = '<p class="subhead">The crew list is empty. Ask your foreman to add you.</p>'; return; }
     if (!rows.length) { list.innerHTML = '<p class="subhead">No one by that name. Ask your foreman to add you.</p>'; return; }
     list.innerHTML = "";
     rows.forEach(p => {
       const li = document.createElement("li");
       li.className = "item";
-      li.innerHTML = '<div class="body"><div class="title">' + escapeHtml(p.name) + '</div></div><div class="arrow">▶</div>';
-      li.addEventListener("click", () => { pinTarget = p; authMode = "pin"; renderAuth(); });
+      li.innerHTML = '<div class="body"><div class="title">' + escapeHtml(p.name) + (p.uid ? '' : '<span class="role-tag first-tag">First time</span>') + '</div></div><div class="arrow">▶</div>';
+      li.addEventListener("click", () => { pinTarget = p; authMode = p.uid ? "pin" : "first"; renderAuth(); });
       list.appendChild(li);
     });
   };
@@ -1419,6 +1449,8 @@ function renderAuth() {
   document.getElementById("toOffice").addEventListener("click", () => { authMode = "login"; renderAuth(); });
 }
 
+function backToPick() { pinTarget = null; pendingFirst = null; authMode = "pick"; renderAuth(); }
+
 function renderPinPad() {
   const first = String(pinTarget.name || "").split(" ")[0];
   C().innerHTML = `
@@ -1426,7 +1458,7 @@ function renderPinPad() {
       <img class="auth-logo" src="${LOGO}" alt="Homestead Electric" />
       <div class="eyebrow"><span>Sign In</span><span class="sep">·</span><span class="sub">Field Manual</span></div>
       <h1 class="display">Hi, ${escapeHtml(first)}<span class="punct">.</span></h1>
-      <p class="subhead">Enter your 4-digit PIN. First time? Use the setup code from your foreman.</p>
+      <p class="subhead">Enter your 4-digit PIN.</p>
       <div class="setup-form pin-form">
         <input type="password" id="pinInput" class="pin-input" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" placeholder="••••" />
         <div class="auth-error" id="authErr"></div>
@@ -1448,7 +1480,7 @@ function renderPinPad() {
   });
   input.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); go(); } });
   document.getElementById("pinGo").addEventListener("click", go);
-  document.getElementById("toPick").addEventListener("click", () => { pinTarget = null; authMode = "pick"; renderAuth(); });
+  document.getElementById("toPick").addEventListener("click", backToPick);
 }
 
 function doPinLogin(p, pin, errEl) {
@@ -1464,7 +1496,107 @@ function doPinLogin(p, pin, errEl) {
     });
 }
 
-/* Email/password sign-in for office staff and leads with company email */
+function renderFirstTime() {
+  const first = String(pinTarget.name || "").split(" ")[0];
+  const err = pendingFirst ? pendingFirst.err : "";
+  pendingFirst = null;
+  C().innerHTML = `
+    <div class="setup-wrap">
+      <img class="auth-logo" src="${LOGO}" alt="Homestead Electric" />
+      <div class="eyebrow"><span>First Time</span><span class="sep">·</span><span class="sub">Field Manual</span></div>
+      <h1 class="display">Welcome, ${escapeHtml(first)}<span class="punct">.</span></h1>
+      <p class="subhead">Enter the crew code, then pick a 4-digit PIN only you know. You'll use the PIN from now on.</p>
+      <div class="setup-form pin-form">
+        <label for="crewCode">Crew code</label>
+        <input type="text" id="crewCode" class="pin-input code-input" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="off" placeholder="••••••" />
+        <label for="newPin1">Pick your PIN</label>
+        <input type="password" id="newPin1" class="pin-input" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" placeholder="••••" />
+        <label for="newPin2">Type it again</label>
+        <input type="password" id="newPin2" class="pin-input" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" placeholder="••••" />
+        <div class="auth-error" id="firstErr">${escapeHtml(err)}</div>
+        <div style="margin-top:16px; display:flex; justify-content:flex-end;">
+          <button class="primary" id="firstGo">Set Up My Login →</button>
+        </div>
+      </div>
+      <div class="auth-toggle">Not ${escapeHtml(first)}? <a id="toPick">Pick your name</a></div>
+    </div>
+  `;
+  const code = document.getElementById("crewCode"), a = document.getElementById("newPin1"), b = document.getElementById("newPin2"), errEl = document.getElementById("firstErr");
+  [[code, 6], [a, 4], [b, 4]].forEach(([el, n]) => el.addEventListener("input", () => { el.value = el.value.replace(/\D/g, "").slice(0, n); errEl.textContent = ""; }));
+  const go = () => claimCrew(pinTarget, code.value, a.value, b.value, errEl);
+  b.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); go(); } });
+  document.getElementById("firstGo").addEventListener("click", go);
+  document.getElementById("toPick").addEventListener("click", backToPick);
+  code.focus();
+}
+
+async function claimCrew(p, code, pin1, pin2, errEl) {
+  if (!/^\d{6}$/.test(code)) { errEl.textContent = "The crew code is 6 numbers. Ask your foreman for it."; return; }
+  if (!validPin(pin1)) { errEl.textContent = "Your PIN is 4 numbers."; return; }
+  if (pin1 !== pin2) { errEl.textContent = "Your PINs don't match. Try again."; return; }
+  if (weakPin(pin1)) { errEl.textContent = "Pick something harder to guess than " + pin1 + "."; return; }
+  errEl.textContent = "Setting you up…";
+  claimInProgress = true;
+  let cred;
+  try {
+    cred = await auth.createUserWithEmailAndPassword(crewEmail(p.id), pinPassword(pin1));
+  } catch (e) {
+    claimInProgress = false;
+    const c = (e && e.code) || "";
+    errEl.textContent = c.includes("email-already-in-use")
+      ? "This name is already set up. If it's you and you forgot your PIN, ask your foreman to reset it."
+      : (c.includes("too-many-requests") ? "Too many tries. Wait a few minutes." : "Could not set up: " + (e.message || e));
+    return;
+  }
+  try {
+    await db.collection("claims").doc(p.id).set({ uid: cred.user.uid, code: code, ts: Date.now() });
+  } catch (e) {
+    // Firebase rejected the crew code. Undo the login so he can try again.
+    pendingFirst = { person: p, err: "That crew code isn't right. Check with your foreman." };
+    claimInProgress = false;
+    try { await cred.user.delete(); } catch (x) { try { await auth.signOut(); } catch (y) {} }
+    return;
+  }
+  try {
+    await finishCrewSetup(p.id);
+    showToast("You're set up", "From now on, tap your name and enter your PIN.");
+  } catch (e) {
+    alert("Almost done, but something went wrong: " + (e.message || e) + ". Close and reopen the app to finish.");
+  } finally {
+    claimInProgress = false;
+    people = null;
+  }
+}
+
+/* Finishes a crew login after the crew code was accepted. Safe to run again if interrupted. */
+async function finishCrewSetup(loginId) {
+  const uid = auth.currentUser.uid;
+  const pSnap = await db.collection("people").doc(loginId).get();
+  if (!pSnap.exists) throw new Error("Your name was removed from the crew list");
+  const p = pSnap.data();
+  if (!p.uid) await db.collection("people").doc(loginId).update({ uid: uid, claimedAt: Date.now() });
+  else if (p.uid !== uid) throw new Error("This name is linked to a different login");
+  const existing = await db.collection("users").doc(uid).get();
+  if (existing.exists) return;
+  const doc = {
+    name: p.name, role: p.role || "apprentice", company: "Homestead Electric",
+    startDate: localDateStr(), earnedBadges: {}, loginId: loginId, pinLogin: true,
+    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+  };
+  if (p.replaces) {
+    const o = (await db.collection("users").doc(p.replaces).get()).data() || {};
+    doc.earnedBadges = o.earnedBadges || {};
+    doc.reqChecks = o.reqChecks || {};
+    doc.reviewRequests = o.reviewRequests || {};
+    doc.feedback = o.feedback || [];
+    if (o.startDate) doc.startDate = o.startDate;
+    if (o.company) doc.company = o.company;
+    if (o.mentorUid) { doc.mentorUid = o.mentorUid; doc.mentorName = o.mentorName || ""; }
+  }
+  await db.collection("users").doc(uid).set(doc);
+}
+
+/* Email/password sign-in for office staff */
 function renderOfficeAuth() {
   const signup = authMode === "signup";
   C().innerHTML = `
@@ -1523,129 +1655,98 @@ function renderOfficeAuth() {
   document.getElementById("toCrew").addEventListener("click", () => { authMode = "pick"; renderAuth(); });
 }
 
-/* ---------- Foreman: add crew logins, reset PINs ---------- */
-function newSetupCode() {
-  const n = (window.crypto && crypto.getRandomValues) ? crypto.getRandomValues(new Uint32Array(1))[0] : Math.floor(Math.random() * 1e9);
-  return String(n % 10000).padStart(4, "0");
-}
+/* ---------- Crew management (foremen, admins, owner) ---------- */
+function canManageRole(role) { return isOwner() || role === "apprentice" || role === "lead"; }
 
-/* Foreman/admin adds someone by name. The app makes a one-time setup code; he picks his own PIN on first sign-in. */
-async function addCrewMember() {
-  const nameEl = document.getElementById("newCrewName");
-  const errEl = document.getElementById("newCrewErr");
-  const name = (nameEl.value || "").trim().replace(/\s+/g, " ");
-  if (name.length < 2) { errEl.textContent = "Enter his full name."; return; }
-  await loadPublicRoster();
-  if (publicRoster.some(p => normName(p.name) === normName(name))) { errEl.textContent = name + " already has a login. Use Reset PIN instead."; return; }
-  errEl.textContent = "Adding…";
-  const id = newLoginId();
-  const code = newSetupCode();
-  const sec = secondaryApp();
+async function addPeopleBulk() {
+  const box = document.getElementById("newPeople");
+  const errEl = document.getElementById("newPeopleErr");
+  const names = String(box.value || "").split(/[\n,]+/).map(s => s.trim().replace(/\s+/g, " ")).filter(s => s.length >= 2);
+  if (!names.length) { errEl.textContent = "Type or paste at least one full name."; return; }
+  await loadPeople();
+  const have = new Set(people.map(p => normName(p.name)));
+  const fresh = [];
+  names.forEach(n => { if (!have.has(normName(n))) { have.add(normName(n)); fresh.push(n); } });
+  const skipped = names.length - fresh.length;
+  if (!fresh.length) { errEl.textContent = "Everyone listed is already on the crew list."; return; }
+  errEl.textContent = "Adding " + fresh.length + "…";
   try {
-    const cred = await sec.auth().createUserWithEmailAndPassword(crewEmail(id), pinPassword(code));
-    await sec.firestore().collection("users").doc(cred.user.uid).set({
-      name: name, role: "apprentice", company: profile.company || "Homestead Electric",
-      startDate: localDateStr(), earnedBadges: {}, loginId: id, pinLogin: true, mustSetPin: true,
-      createdAt: firebase.firestore.FieldValue.serverTimestamp()
-    });
-    await sec.auth().signOut();
-    await db.collection("setup").doc(cred.user.uid).set({ code: code, name: name, ts: Date.now() });
-    await db.collection("public").doc("roster").set({ people: firebase.firestore.FieldValue.arrayUnion({ id: id, name: name, uid: cred.user.uid }) }, { merge: true });
-    publicRoster = null;
-    showToast("Added " + name, "Setup code " + code + ". He picks his own PIN after.");
+    const batch = db.batch();
+    fresh.forEach(n => batch.set(db.collection("people").doc(newLoginId() + randomDigits(2)), { name: n, role: "apprentice", uid: null, addedAt: Date.now() }));
+    await batch.commit();
+    people = null;
+    showToast("Added " + fresh.length + " to the crew list", skipped ? skipped + " already on it." : "They set up their own login with the crew code.");
     renderAdmin();
   } catch (e) {
-    try { await sec.auth().signOut(); } catch (x) {}
     errEl.textContent = "Could not add: " + (e.message || e);
   }
 }
 
-/* Forgot PIN: new login with a fresh setup code, progress carried over, old login retired. */
-async function resetCrewPin(oldUid) {
-  const oldSnap = await db.collection("users").doc(oldUid).get();
-  if (!oldSnap.exists) return;
-  const old = oldSnap.data();
-  if (!confirm("Reset the PIN for " + (old.name || "this person") + "? He'll get a one-time setup code and pick a new PIN. His merits carry over.")) return;
-  const id = newLoginId();
-  const code = newSetupCode();
-  const sec = secondaryApp();
+async function setPersonRole(personId, role) {
+  const p = (people || []).find(x => x.id === personId);
+  if (!p) return;
   try {
-    const cred = await sec.auth().createUserWithEmailAndPassword(crewEmail(id), pinPassword(code));
-    const newUid = cred.user.uid;
-    await sec.firestore().collection("users").doc(newUid).set({
-      name: old.name || "", role: "apprentice", company: old.company || "Homestead Electric",
-      startDate: old.startDate || localDateStr(), earnedBadges: {}, loginId: id, pinLogin: true, mustSetPin: true,
-      createdAt: firebase.firestore.FieldValue.serverTimestamp()
-    });
-    await sec.auth().signOut();
-    const carry = {
-      earnedBadges: old.earnedBadges || {}, reqChecks: old.reqChecks || {},
-      reviewRequests: old.reviewRequests || {}, feedback: old.feedback || []
-    };
-    if (old.mentorUid) { carry.mentorUid = old.mentorUid; carry.mentorName = old.mentorName || ""; }
-    if (old.role === "lead" || (isOwner() && (old.role === "foreman" || old.role === "admin"))) carry.role = old.role;
-    await db.collection("users").doc(newUid).update(carry);
-    await db.collection("users").doc(oldUid).update({ archived: true, replacedBy: newUid });
-    await db.collection("setup").doc(newUid).set({ code: code, name: old.name || "", ts: Date.now() });
-    const r = await db.collection("public").doc("roster").get();
-    const people = ((r.exists && r.data().people) || []).filter(p => p.uid !== oldUid && normName(p.name) !== normName(old.name));
-    people.push({ id: id, name: old.name || "", uid: newUid });
-    await db.collection("public").doc("roster").set({ people: people }, { merge: true });
-    publicRoster = null;
-    showToast("PIN reset for " + (old.name || "crew member"), "Setup code " + code + ". His merits carried over.");
+    if (p.uid) await db.collection("users").doc(p.uid).update({ role: role });
+    await db.collection("people").doc(personId).update({ role: role });
+    people = null;
     renderAdmin();
-  } catch (e) {
-    try { await sec.auth().signOut(); } catch (x) {}
-    alert("Could not reset the PIN: " + (e.message || e));
-  }
+  } catch (e) { alert("Could not change role: " + e.message); }
 }
 
-/* First sign-in with a setup code: he chooses his own PIN before anything else. */
-function renderSetPin() {
-  const first = String(profile.name || "").split(" ")[0];
-  C().innerHTML = `
-    <div class="setup-wrap">
-      <img class="auth-logo" src="${LOGO}" alt="Homestead Electric" />
-      <div class="eyebrow"><span>Welcome</span><span class="sep">·</span><span class="sub">Field Manual</span></div>
-      <h1 class="display">Pick your PIN, ${escapeHtml(first)}<span class="punct">.</span></h1>
-      <p class="subhead">Choose 4 numbers only you know. You'll use them to sign in from now on.</p>
-      <div class="setup-form pin-form">
-        <label for="newPin1">New PIN</label>
-        <input type="password" id="newPin1" class="pin-input" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" placeholder="••••" />
-        <label for="newPin2">Type it again</label>
-        <input type="password" id="newPin2" class="pin-input" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" placeholder="••••" />
-        <div class="auth-error" id="setPinErr"></div>
-        <div style="margin-top:16px; display:flex; justify-content:flex-end;">
-          <button class="primary" id="setPinGo">Save My PIN →</button>
-        </div>
-      </div>
-    </div>
-  `;
-  const a = document.getElementById("newPin1"), b = document.getElementById("newPin2"), err = document.getElementById("setPinErr");
-  [a, b].forEach(el => el.addEventListener("input", () => { el.value = el.value.replace(/\D/g, "").slice(0, 4); err.textContent = ""; }));
-  const go = () => saveOwnPin(a.value, b.value, err);
-  b.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); go(); } });
-  document.getElementById("setPinGo").addEventListener("click", go);
-  a.focus();
+async function removePerson(personId) {
+  const p = (people || []).find(x => x.id === personId);
+  if (!p || p.uid) return;
+  if (!confirm("Remove " + p.name + " from the crew list?")) return;
+  try { await db.collection("people").doc(personId).delete(); people = null; renderAdmin(); }
+  catch (e) { alert("Could not remove: " + e.message); }
 }
-async function saveOwnPin(p1, p2, errEl) {
-  if (!validPin(p1)) { errEl.textContent = "Your PIN is 4 numbers."; return; }
-  if (p1 !== p2) { errEl.textContent = "Those don't match. Try again."; return; }
-  if (/^(\d)\1{3}$/.test(p1) || p1 === "1234") { errEl.textContent = "Pick something harder to guess than " + p1 + "."; return; }
-  errEl.textContent = "Saving…";
+
+/* Forgot PIN: retire his login and put his name back on the list as a first-timer.
+   He sets up again with the crew code and his merits carry over (checked by the rules). */
+async function resetPerson(personId) {
+  const p = (people || []).find(x => x.id === personId);
+  if (!p || !p.uid) return;
+  if (!confirm("Reset " + p.name + "'s PIN? He'll tap his name, enter the crew code, and pick a new PIN. His merits carry over.")) return;
   try {
-    await me.updatePassword(pinPassword(p1));
-    await db.collection("users").doc(me.uid).update({ mustSetPin: false });
-    showToast("PIN saved", "Use it next time you sign in.");
-  } catch (e) {
-    const c = (e && e.code) || "";
-    if (c.includes("requires-recent-login")) {
-      errEl.textContent = "For security, sign in again with your setup code, then pick your PIN.";
-      setTimeout(() => doLogout(), 2500);
-    } else {
-      errEl.textContent = "Could not save: " + (e.message || e);
-    }
-  }
+    const u = (await db.collection("users").doc(p.uid).get()).data() || {};
+    const batch = db.batch();
+    batch.set(db.collection("people").doc(newLoginId() + randomDigits(2)), { name: p.name, role: u.role || p.role || "apprentice", uid: null, replaces: p.uid, addedAt: Date.now() });
+    batch.delete(db.collection("people").doc(personId));
+    batch.update(db.collection("users").doc(p.uid), { archived: true });
+    batch.delete(db.collection("claims").doc(personId));
+    await batch.commit();
+    people = null;
+    showToast("PIN reset for " + p.name, "He sets up again with the crew code. Merits carry over.");
+    renderAdmin();
+  } catch (e) { alert("Could not reset: " + e.message); }
+}
+
+/* Crew code */
+let crewCode = null;
+function loadCrewCode() {
+  return db.collection("secret").doc("crew").get()
+    .then(s => { crewCode = s.exists ? (s.data().code || null) : null; return crewCode; })
+    .catch(() => { crewCode = null; return null; });
+}
+async function newCrewCode() {
+  if (crewCode && !confirm("Make a new crew code? The old one stops working for anyone who hasn't set up yet. People already set up aren't affected.")) return;
+  const code = randomDigits(6);
+  try { await db.collection("secret").doc("crew").set({ code: code, ts: Date.now() }); crewCode = code; renderAdmin(); }
+  catch (e) { alert("Could not save the code: " + e.message); }
+}
+function rolloutText() {
+  return "The Field Manual is live. Tap Field Manual in Command Center, or open " + APP_URL
+    + " . Tap your name, enter crew code " + crewCode + ", and pick your own 4-digit PIN.";
+}
+function copyRolloutText() {
+  const t = rolloutText();
+  const done = () => showToast("Copied", "Paste it into your crew group text.");
+  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(t).then(done).catch(() => fallbackCopy(t, done));
+  else fallbackCopy(t, done);
+}
+function fallbackCopy(t, done) {
+  const ta = document.getElementById("rolloutText");
+  if (ta) { ta.focus(); ta.select(); try { document.execCommand("copy"); done(); } catch (e) {} }
 }
 
 async function changeMyPin() {
@@ -1654,6 +1755,7 @@ async function changeMyPin() {
   if (!cur) return;
   const next = (prompt("Your new 4-digit PIN:") || "").trim();
   if (!validPin(next)) { alert("The PIN must be 4 numbers."); return; }
+  if (weakPin(next)) { alert("Pick something harder to guess than " + next + "."); return; }
   try {
     await me.reauthenticateWithCredential(firebase.auth.EmailAuthProvider.credential(me.email, pinPassword(cur)));
     await me.updatePassword(pinPassword(next));
@@ -1664,9 +1766,9 @@ async function changeMyPin() {
 }
 
 function renderArchived() {
-  C().innerHTML = '<div class="loading-wrap"><div class="msg">This login was replaced</div>'
-    + '<p class="subhead" style="margin-top:12px">Your foreman reset your PIN. Sign in with your name and the new PIN he gave you.</p>'
-    + '<button class="primary" onclick="doLogout()">Sign In Again</button></div>';
+  C().innerHTML = '<div class="loading-wrap"><div class="msg">This login was reset</div>'
+    + '<p class="subhead" style="margin-top:12px">Your foreman reset your PIN. Tap your name, enter the crew code, and pick a new PIN. Your merits carried over.</p>'
+    + '<button class="primary" onclick="doLogout()">Set Up Again</button></div>';
 }
 
 /* ---------- Top bar (logged in) ---------- */
@@ -2781,77 +2883,119 @@ function renderDigest() {
 /* ---------- Owner: manage crew (roles) ---------- */
 function openAdmin() { view = { name: "admin" }; window.scrollTo(0, 0); render(); }
 function renderAdmin() {
-  // Pull everyone (owner can read all). Use a one-time query.
   C().innerHTML = `
     ${topBar()}
     <button class="back-link" onclick="goHome()">Back</button>
     <div class="eyebrow"><span>Crew</span><span class="sep">·</span><span class="sub">Logins and roles</span></div>
     <h1 class="display">Manage Crew<span class="punct">.</span></h1>
-    <div class="section-head"><h2>Add a Crew Member</h2><span class="meta">You get a one-time setup code. He picks his own PIN.</span></div>
+
+    <div class="section-head"><h2>Crew Code</h2><span class="meta">Everyone uses it once, the first time they sign in</span></div>
+    <div class="setup-form crew-code-box" id="crewCodeBox"><div class="loading-wrap" style="padding:10px 0"><div class="spin"></div></div></div>
+
+    <div class="section-head" style="margin-top:28px"><h2>Add People</h2><span class="meta">One name per line, spelled like Command Center</span></div>
     <div class="setup-form add-crew">
-      <div class="add-crew-row">
-        <div><label for="newCrewName">Full name</label><input type="text" id="newCrewName" placeholder="Same spelling as Command Center" /></div>
-        <div class="add-crew-go"><button class="primary" onclick="addCrewMember()">Add →</button></div>
-      </div>
-      <div class="auth-error" id="newCrewErr"></div>
-      <p class="locked-note" style="margin-top:6px">Use the same spelling as Command Center so the Field Manual button there takes him straight to his PIN.</p>
+      <textarea id="newPeople" rows="3" placeholder="Gage Lund&#10;Noah Davis"></textarea>
+      <div class="auth-error" id="newPeopleErr"></div>
+      <div style="display:flex; justify-content:flex-end; margin-top:10px;"><button class="primary" onclick="addPeopleBulk()">Add to Crew List →</button></div>
     </div>
-    <div class="section-head" style="margin-top:28px"><h2>Roles</h2></div>
-    <p class="subhead">Promote a trusted apprentice to <strong>Lead</strong>. Leads can pass others off on merits they've personally earned.${isOwner() ? " You can also make <strong>Foremen</strong> and <strong>Admins</strong>, who can sign off anything and manage the crew." : ""} Nobody can sign off their own work.</p>
+
+    <div class="section-head" style="margin-top:28px"><h2>Crew</h2><span class="meta" id="crewCounts"></span></div>
+    <p class="subhead" style="margin-bottom:14px">Leads pass others off on merits they've earned.${isOwner() ? " Foremen and Admins can sign off anything and manage the crew. Only you can make them." : ""} Nobody signs off their own work.</p>
     <ul class="item-list" id="adminList"><li class="loading-wrap"><div class="spin"></div></li></ul>
+
+    <div id="emailAccounts"></div>
   `;
-  ["newCrewName"].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); addCrewMember(); } });
+
+  loadCrewCode().then(() => {
+    const box = document.getElementById("crewCodeBox");
+    if (!box) return;
+    box.innerHTML = crewCode
+      ? `<div class="crew-code-row">
+           <div class="crew-code">${escapeHtml(crewCode)}</div>
+           <div class="crew-code-actions">
+             <button class="primary" onclick="copyRolloutText()">Copy Rollout Text</button>
+             <button class="ghost" onclick="newCrewCode()">New Code</button>
+           </div>
+         </div>
+         <textarea id="rolloutText" class="rollout-text" rows="3" readonly>${escapeHtml(rolloutText())}</textarea>
+         <p class="locked-note" style="margin-top:8px">Send this to the crew group text. Changing the code doesn't affect anyone already set up.</p>`
+      : `<p class="subhead" style="margin:0 0 12px">No crew code yet. Make one, then send it to the crew.</p>
+         <button class="primary" onclick="newCrewCode()">Make Crew Code</button>`;
   });
-  let setupCodes = {};
-  Promise.all([db.collection("users").get(), db.collection("setup").get().catch(() => ({ docs: [] }))]).then(([snap, setupSnap]) => {
-    setupSnap.docs.forEach(d => { setupCodes[d.id] = d.data(); });
+
+  Promise.all([loadPeople(), db.collection("users").get()]).then(([ppl, snap]) => {
     const users = snap.docs.map(d => Object.assign({ id: d.id }, d.data())).filter(u => !u.archived);
-    users.sort((a, b) => (a.role || "").localeCompare(b.role || "") || (a.name || "").localeCompare(b.name || ""));
+    const byUid = {}; users.forEach(u => { byUid[u.id] = u; });
+    const owner = isOwner();
     const list = document.getElementById("adminList");
+    if (!list) return;
     list.innerHTML = "";
-    users.forEach(u => {
-      const isOwnerRow = (u.email || "").toLowerCase() === OWNER_EMAIL;
+    const setUp = ppl.filter(p => p.uid).length;
+    document.getElementById("crewCounts").textContent = setUp + " set up · " + (ppl.length - setUp) + " not yet";
+    if (!ppl.length) list.innerHTML = '<p class="subhead">No one on the crew list yet. Add names above.</p>';
+
+    const order = { admin: 0, foreman: 1, lead: 2, apprentice: 3 };
+    ppl.slice().sort((a, b) => {
+      const ra = (a.uid && byUid[a.uid] ? byUid[a.uid].role : a.role) || "apprentice";
+      const rb = (b.uid && byUid[b.uid] ? byUid[b.uid].role : b.role) || "apprentice";
+      return (order[ra] - order[rb]) || (a.name || "").localeCompare(b.name || "");
+    }).forEach(p => {
+      const u = p.uid ? byUid[p.uid] : null;
+      const role = (u ? u.role : p.role) || "apprentice";
       const li = document.createElement("li");
       li.className = "item";
       li.style.cursor = "default";
-      const rtClass = (u.role === "foreman" || u.role === "admin") ? "foreman" : (u.role === "lead" ? "lead" : "");
+      const tagClass = (role === "foreman" || role === "admin") ? "foreman" : (role === "lead" ? "lead" : "");
       li.innerHTML = `
         <div class="body">
-          <div class="title">${escapeHtml(u.name || u.email)}<span class="role-tag ${rtClass}">${escapeHtml(u.role || 'apprentice')}</span></div>
-          <div class="sub">${u.pinLogin ? (u.mustSetPin ? '<span class="setup-pending">Hasn\'t signed in yet · setup code <strong>' + escapeHtml((setupCodes[u.id] || {}).code || "····") + '</strong></span>' : "Signs in with name and PIN") : escapeHtml(u.email || "")}</div>
+          <div class="title">${escapeHtml(p.name)}<span class="role-tag ${tagClass}">${escapeHtml(role)}</span></div>
+          <div class="sub">${p.uid ? "Set up" : '<span class="setup-pending">Not set up yet</span>'}${p.replaces && !p.uid ? " · PIN was reset, merits waiting" : ""}</div>
         </div>
-        <div class="right" style="display:flex; gap:6px;"></div>
+        <div class="right" style="display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-end;"></div>
       `;
       const actions = li.querySelector(".right");
-      function addBtn(label, target, ghost) {
-        const b = document.createElement("button");
-        if (ghost) b.className = "ghost";
-        b.textContent = label;
-        b.onclick = () => setRole(u.id, target);
-        actions.appendChild(b);
-      }
-      if (isOwnerRow) {
-        actions.innerHTML = '<span class="role-tag foreman">You</span>';
-      } else {
-        const role = u.role || "apprentice";
-        const owner = isOwner();
-        if (role === "apprentice") { addBtn("Make Lead", "lead", true); if (owner) { addBtn("Make Foreman", "foreman", false); addBtn("Make Admin", "admin", false); } }
-        else if (role === "lead") { addBtn("Make Apprentice", "apprentice", true); if (owner) { addBtn("Make Foreman", "foreman", false); addBtn("Make Admin", "admin", false); } }
-        else if (role === "foreman") { if (owner) { addBtn("Make Apprentice", "apprentice", true); addBtn("Make Admin", "admin", false); } else actions.innerHTML = '<span class="role-tag foreman">Foreman</span>'; }
-        else if (role === "admin") { if (owner) { addBtn("Make Foreman", "foreman", true); addBtn("Make Apprentice", "apprentice", true); } else actions.innerHTML = '<span class="role-tag foreman">Admin</span>'; }
-        if (u.pinLogin && ((role !== "foreman" && role !== "admin") || owner)) {
-          const rb = document.createElement("button");
-          rb.className = "ghost";
-          rb.textContent = "Reset PIN";
-          rb.onclick = () => resetCrewPin(u.id);
-          actions.appendChild(rb);
-        }
+      const add = (label, fn, ghost) => { const b = document.createElement("button"); if (ghost) b.className = "ghost"; b.textContent = label; b.onclick = fn; actions.appendChild(b); };
+      const roleBtn = (label, target, ghost) => add(label, () => setPersonRole(p.id, target), ghost);
+      if (role === "apprentice") { roleBtn("Make Lead", "lead", true); if (owner) { roleBtn("Make Foreman", "foreman", true); roleBtn("Make Admin", "admin", true); } }
+      else if (role === "lead") { roleBtn("Make Apprentice", "apprentice", true); if (owner) { roleBtn("Make Foreman", "foreman", true); roleBtn("Make Admin", "admin", true); } }
+      else if (role === "foreman" && owner) { roleBtn("Make Admin", "admin", true); roleBtn("Make Apprentice", "apprentice", true); }
+      else if (role === "admin" && owner) { roleBtn("Make Foreman", "foreman", true); roleBtn("Make Apprentice", "apprentice", true); }
+      if (canManageRole(role)) {
+        if (p.uid) add("Reset PIN", () => resetPerson(p.id), true);
+        else add("Remove", () => removePerson(p.id), true);
       }
       list.appendChild(li);
     });
-    if (!users.length) list.innerHTML = '<p class="subhead">No accounts yet.</p>';
+
+    // Email accounts (office staff), not part of the crew list
+    const linked = new Set(ppl.map(p => p.uid).filter(Boolean));
+    const emailUsers = users.filter(u => !u.pinLogin && !linked.has(u.id));
+    const box = document.getElementById("emailAccounts");
+    if (!emailUsers.length || !box) return;
+    box.innerHTML = '<div class="section-head" style="margin-top:28px"><h2>Email Accounts</h2><span class="meta">Office logins</span></div><ul class="item-list" id="emailList"></ul>';
+    const el = document.getElementById("emailList");
+    emailUsers.sort((a, b) => (a.name || "").localeCompare(b.name || "")).forEach(u => {
+      const isOwnerRow = (u.email || "").toLowerCase() === OWNER_EMAIL;
+      const role = u.role || "apprentice";
+      const li = document.createElement("li");
+      li.className = "item";
+      li.style.cursor = "default";
+      const tagClass = (role === "foreman" || role === "admin" || role === "owner") ? "foreman" : (role === "lead" ? "lead" : "");
+      li.innerHTML = `
+        <div class="body">
+          <div class="title">${escapeHtml(u.name || u.email)}<span class="role-tag ${tagClass}">${escapeHtml(role)}</span></div>
+          <div class="sub">${escapeHtml(u.email || "")}</div>
+        </div>
+        <div class="right" style="display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-end;"></div>
+      `;
+      const actions = li.querySelector(".right");
+      const btn = (label, target) => { const b = document.createElement("button"); b.className = "ghost"; b.textContent = label; b.onclick = () => setRole(u.id, target); actions.appendChild(b); };
+      if (isOwnerRow) actions.innerHTML = '<span class="role-tag foreman">You</span>';
+      else if (role === "apprentice") { btn("Make Lead", "lead"); if (owner) { btn("Make Foreman", "foreman"); btn("Make Admin", "admin"); } }
+      else if (role === "lead") { btn("Make Apprentice", "apprentice"); if (owner) { btn("Make Foreman", "foreman"); btn("Make Admin", "admin"); } }
+      else if ((role === "foreman" || role === "admin") && owner) { btn(role === "admin" ? "Make Foreman" : "Make Admin", role === "admin" ? "foreman" : "admin"); btn("Make Apprentice", "apprentice"); }
+      el.appendChild(li);
+    });
   }).catch(e => renderError(e.message));
 }
 function setRole(uid, role) {
@@ -3133,7 +3277,8 @@ window.openDigest = openDigest; window.toggleLeadCrew = toggleLeadCrew;
 window.saveReqChecks = saveReqChecks; window.checkAllReqs = checkAllReqs; window.requestReview = requestReview;
 window.cancelReview = cancelReview; window.sendBack = sendBack; window.openReview = openReview;
 window.openPlanner = openPlanner; window.setPlannerBadge = setPlannerBadge; window.backFromPlanner = backFromPlanner;
-window.addCrewMember = addCrewMember; window.resetCrewPin = resetCrewPin; window.changeMyPin = changeMyPin; window.switchToArrival = switchToArrival;
+window.addPeopleBulk = addPeopleBulk; window.setPersonRole = setPersonRole; window.removePerson = removePerson; window.resetPerson = resetPerson;
+window.newCrewCode = newCrewCode; window.copyRolloutText = copyRolloutText; window.changeMyPin = changeMyPin; window.switchToArrival = switchToArrival;
 
 /* Apply Homestead branding once the DOM is ready */
 (function setupBrand(){
