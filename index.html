@@ -1175,11 +1175,11 @@ window.toggleDevApprentice = function () {
   location.reload();
 };
 
-function isForeman() { return !__devApprenticeView && profile && (profile.role === "foreman" || profile.role === "owner"); }
+function isForeman() { return !__devApprenticeView && profile && (profile.role === "foreman" || profile.role === "admin" || profile.role === "owner"); }
 function isOwner()   { return !__devApprenticeView && !!me && me.email && me.email.toLowerCase() === OWNER_EMAIL; }
 function isLead()    { return !__devApprenticeView && profile && profile.role === "lead"; }
 /* Only foremen (any merit) and leads (merits they hold) sign off work. The owner account manages but does not sign off. */
-function isSignerForeman() { return !__devApprenticeView && profile && profile.role === "foreman"; }
+function isSignerForeman() { return !__devApprenticeView && profile && (profile.role === "foreman" || profile.role === "admin"); }
 let leadCrewMode = false;
 
 /* ---------- Auth lifecycle ---------- */
@@ -1577,7 +1577,7 @@ async function resetCrewPin(oldUid) {
       reviewRequests: old.reviewRequests || {}, feedback: old.feedback || []
     };
     if (old.mentorUid) { carry.mentorUid = old.mentorUid; carry.mentorName = old.mentorName || ""; }
-    if (old.role === "lead" || (isOwner() && old.role === "foreman")) carry.role = old.role;
+    if (old.role === "lead" || (isOwner() && (old.role === "foreman" || old.role === "admin"))) carry.role = old.role;
     await db.collection("users").doc(newUid).update(carry);
     // 3) Retire the old login and swap the name list entry
     await db.collection("users").doc(oldUid).update({ archived: true, replacedBy: newUid });
@@ -1617,7 +1617,7 @@ function renderArchived() {
 
 /* ---------- Top bar (logged in) ---------- */
 function topBar() {
-  const roleLabel = isOwner() ? "Owner" : (profile.role === "foreman" ? "Foreman" : (profile.role === "lead" ? "Lead" : "Apprentice"));
+  const roleLabel = isOwner() ? "Owner" : ({ admin: "Admin", foreman: "Foreman", lead: "Lead" }[profile.role] || "Apprentice");
   const roleClass = isForeman() ? "foreman" : (isLead() ? "lead" : "");
   return `
     <div class="toolbar">
@@ -1647,7 +1647,7 @@ function renderRoster() {
   C().innerHTML = `
     ${topBar()}
     ${editMode ? '<div class="edit-banner">Edit mode — open someone, then click ranks or merits to modify the shared curriculum.</div>' : ''}
-    <div class="eyebrow"><span>${foreman ? "Foreman" : "Lead"}</span><span class="sep">·</span><span class="sub">${escapeHtml(profile.company || "Crew")}</span></div>
+    <div class="eyebrow"><span>${isOwner() ? "Owner" : ({ admin: "Admin", foreman: "Foreman" }[profile.role] || "Lead")}</span><span class="sep">·</span><span class="sub">${escapeHtml(profile.company || "Crew")}</span></div>
     <h1 class="display-name">THE CREW<span class="punct">.</span></h1>
     <p class="subhead" style="margin-top:8px">${foreman ? "Pick someone to view their progress and sign off merits." : "Pick someone to pass them off on merits you've earned."}</p>
     <div id="reviewQueue"></div>
@@ -2744,7 +2744,7 @@ function renderAdmin() {
       <p class="locked-note" style="margin-top:6px">Use the same spelling as Command Center so the Field Manual button there takes him straight to his PIN.</p>
     </div>
     <div class="section-head" style="margin-top:28px"><h2>Roles</h2></div>
-    <p class="subhead">Promote a trusted apprentice to <strong>Lead</strong>. Leads can pass others off on merits they've personally earned.${isOwner() ? " Owners can also make Foremen, who can sign off anything." : ""} Nobody can sign off their own work.</p>
+    <p class="subhead">Promote a trusted apprentice to <strong>Lead</strong>. Leads can pass others off on merits they've personally earned.${isOwner() ? " You can also make <strong>Foremen</strong> and <strong>Admins</strong>, who can sign off anything and manage the crew." : ""} Nobody can sign off their own work.</p>
     <ul class="item-list" id="adminList"><li class="loading-wrap"><div class="spin"></div></li></ul>
   `;
   ["newCrewName", "newCrewPin"].forEach(id => {
@@ -2761,7 +2761,7 @@ function renderAdmin() {
       const li = document.createElement("li");
       li.className = "item";
       li.style.cursor = "default";
-      const rtClass = u.role === "foreman" ? "foreman" : (u.role === "lead" ? "lead" : "");
+      const rtClass = (u.role === "foreman" || u.role === "admin") ? "foreman" : (u.role === "lead" ? "lead" : "");
       li.innerHTML = `
         <div class="body">
           <div class="title">${escapeHtml(u.name || u.email)}<span class="role-tag ${rtClass}">${escapeHtml(u.role || 'apprentice')}</span></div>
@@ -2782,10 +2782,11 @@ function renderAdmin() {
       } else {
         const role = u.role || "apprentice";
         const owner = isOwner();
-        if (role === "apprentice") { addBtn("Make Lead", "lead", true); if (owner) addBtn("Make Foreman", "foreman", false); }
-        else if (role === "lead") { addBtn("Make Apprentice", "apprentice", true); if (owner) addBtn("Make Foreman", "foreman", false); }
-        else if (role === "foreman") { if (owner) addBtn("Make Apprentice", "apprentice", true); else actions.innerHTML = '<span class="role-tag foreman">Foreman</span>'; }
-        if (u.pinLogin && (role !== "foreman" || owner)) {
+        if (role === "apprentice") { addBtn("Make Lead", "lead", true); if (owner) { addBtn("Make Foreman", "foreman", false); addBtn("Make Admin", "admin", false); } }
+        else if (role === "lead") { addBtn("Make Apprentice", "apprentice", true); if (owner) { addBtn("Make Foreman", "foreman", false); addBtn("Make Admin", "admin", false); } }
+        else if (role === "foreman") { if (owner) { addBtn("Make Apprentice", "apprentice", true); addBtn("Make Admin", "admin", false); } else actions.innerHTML = '<span class="role-tag foreman">Foreman</span>'; }
+        else if (role === "admin") { if (owner) { addBtn("Make Foreman", "foreman", true); addBtn("Make Apprentice", "apprentice", true); } else actions.innerHTML = '<span class="role-tag foreman">Admin</span>'; }
+        if (u.pinLogin && ((role !== "foreman" && role !== "admin") || owner)) {
           const rb = document.createElement("button");
           rb.className = "ghost";
           rb.textContent = "Reset PIN";
